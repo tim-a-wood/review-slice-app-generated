@@ -17,6 +17,7 @@
     "appId": "com.reviewslice.desktop",
     "productName": "Review Slice",
     "files": ["dist/**", "dist-electron/**", "package.json"],
+    "directories": { "output": "release" },
     "win": { "target": [{ "target": "nsis", "arch": ["x64"] }] },
     "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true }
   },
