@@ -10,7 +10,7 @@
     "test": "tsc -p tsconfig.test.json && node .test-out/test/integration.js",
     "build": "npm run typecheck && vite build && vite build --ssr electron/main.ts --outDir dist-electron && vite build --ssr electron/preload.ts --outDir dist-electron --emptyOutDir false",
     "start": "electron .",
-    "dist:win": "npm run build && electron-builder --win nsis --x64",
+    "dist:win": "npm run build && electron-builder --win nsis --x64 --publish never",
     "verify": "npm run typecheck && npm test && npm run build"
   },
   "build": {
