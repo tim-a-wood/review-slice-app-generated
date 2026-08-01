@@ -1,0 +1,68 @@
+{
+  "capture": {
+    "result": "completed",
+    "viewport": {
+      "height": 960,
+      "width": 1440
+    },
+    "views": [
+      {
+        "file": "dashboard.png",
+        "name": "dashboard",
+        "result": "completed",
+        "sha256": "b2712018e510f8c2e9920b4a14cd73153e21aebf3683e32a3191ae09c82d3fe5"
+      },
+      {
+        "file": "review-workspace.png",
+        "name": "review-workspace",
+        "result": "completed",
+        "sha256": "35ee6eaf64950fc62736b725fb3af200cee3854cea033984d9e76b7e17fada01"
+      },
+      {
+        "file": "revision-comparison.png",
+        "name": "revision-comparison",
+        "result": "completed",
+        "sha256": "5e7b9ec1e017ff3130ed3157f06246bd00eedda3d84ef243a75d9fdadecab2e1"
+      },
+      {
+        "file": "findings-register.png",
+        "name": "findings-register",
+        "result": "completed",
+        "sha256": "e4252f64b6ad14a8fe148afd0cd7c3f0d949593cd21cbb50ae9498d9bc310548"
+      }
+    ]
+  },
+  "design": {
+    "baseline": "approved",
+    "baselineChecks": "passed",
+    "moduleDesigns": {
+      "approved": 5
+    },
+    "systemDesign": "approved"
+  },
+  "implementationRuns": [
+    { "result": "applied", "sequence": 1, "work": "artifact-processing" },
+    { "result": "applied", "sequence": 2, "work": "evidence-export" },
+    { "result": "applied", "sequence": 3, "work": "findings-management" },
+    { "result": "applied", "sequence": 4, "work": "review-workflow" },
+    { "result": "applied", "sequence": 5, "work": "user-workspace" },
+    { "result": "applied", "sequence": 6, "work": "desktop-application" },
+    { "result": "applied", "sequence": 7, "work": "type-boundary-repair" },
+    { "result": "applied", "sequence": 8, "work": "revision-workflow" }
+  ],
+  "overlay": {
+    "application": "recorded",
+    "inspection": "eligible"
+  },
+  "planning": {
+    "behaviorChecks": "passed",
+    "planRevision": 39,
+    "useCases": 9,
+    "workflowsActionsTraces": 24
+  },
+  "verification": {
+    "compose": { "build": "failed", "test": "passed", "typecheck": "failed" },
+    "final": { "build": "passed", "test": "passed", "typecheck": "passed" },
+    "repair": { "build": "passed", "test": "passed", "typecheck": "passed" }
+  }
+}
