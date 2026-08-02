@@ -5,6 +5,7 @@ import { join } from "node:path"
 import test from "node:test"
 import { deflateSync } from "node:zlib"
 import { ArtifactImportError, compareRevisions, createArtifactProcessing, createManualMappingSet, importArtifact, importLocalPath, parseManualMappingSet } from "../src/index.ts"
+import { toPdfJsAssetDirectory } from "../src/parsers.ts"
 
 const bytes = (value: string): Uint8Array => new TextEncoder().encode(value)
 
@@ -14,6 +15,10 @@ test("the public factory is headless and exposes the approved operations", () =>
   assert.equal(typeof module.importArtifact, "function")
   assert.equal(typeof module.compareRevisions, "function")
   assert.equal("mount" in module, false)
+})
+
+test("normalizes Windows PDF.js asset paths to the required directory URL form", () => {
+  assert.equal(toPdfJsAssetDirectory("D:\\app\\node_modules\\pdfjs-dist\\cmaps\\"), "D:/app/node_modules/pdfjs-dist/cmaps/")
 })
 
 test("creates deterministic, unique, exact Markdown slices without changing source bytes", async () => {

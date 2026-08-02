@@ -10,7 +10,11 @@ const textKinds: Record<string, ArtifactKind> = { md: "markdown", markdown: "mar
 const codeExtensions = new Set(["c", "cc", "cpp", "cs", "css", "go", "h", "hpp", "html", "java", "js", "jsx", "kt", "m", "mm", "php", "py", "rb", "rs", "scss", "swift", "ts", "tsx", "vue", "yaml", "yml"])
 const namedEntities = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'" } as const
 const pdfJsDirectory = dirname(createRequire(import.meta.url).resolve("pdfjs-dist/package.json"))
-const pdfJsAssetDirectory = (name: string): string => `${join(pdfJsDirectory, name)}${process.platform === "win32" ? "\\" : "/"}`
+const pdfJsAssetDirectory = (name: string): string => toPdfJsAssetDirectory(join(pdfJsDirectory, name))
+
+export function toPdfJsAssetDirectory(path: string): string {
+  return `${path.replace(/\\/g, "/").replace(/\/+$/, "")}/`
+}
 
 export interface ParsedSource { text: string; slices: RawSlice[]; coordinateSystem: CoordinateSystem }
 
