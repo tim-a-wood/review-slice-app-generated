@@ -1,27 +1,61 @@
 # Review Slice
 
-Review Slice is a local desktop application for source-linked technical reviews.
-The application stores review state in the Electron user data directory.
-The application writes a primary JSON file and a recoverable backup.
+Review Slice is a local-first desktop application for structured, source-linked technical reviews. It turns supported documents and source directories into stable review slices, preserves review decisions across revisions, tracks findings against exact source locations, and exports a review evidence package.
 
-## Run application
+![Review Slice dashboard](docs/evidence/dashboard.png)
 
-Install dependencies in the repository directory.
+## What the application supports
+
+- Import Markdown, text, DOCX, PDF, CSV, JSON, XML, diff, and patch files, or import a source-code directory.
+- Review each source slice as accepted, skipped, questioned, or linked to a finding.
+- Re-import a revision and classify slices as unchanged, modified, added, removed, relocated, or unmatched.
+- Retain prior dispositions only for unchanged or equivalently relocated content.
+- Manage source-linked findings through open, addressed, verified, rejected, and deferred states.
+- Export review summaries, finding registers, source manifests, review history, and a complete evidence ZIP.
+- Keep review content and state on the local computer; the installed application does not require network access.
+
+## Product tour
+
+### Source-linked review workspace
+
+The review workspace keeps the review queue, immutable source content, current disposition, linked findings, and keyboard actions in one workbench.
+
+![Source-linked review workspace](docs/evidence/review-workspace.png)
+
+### Findings register
+
+Every finding retains its source slice and exact location. Reviewers can filter the register, update lifecycle state, add resolution notes, return to the linked source, or export CSV.
+
+![Source-linked findings register](docs/evidence/findings-register.png)
+
+### Revision comparison
+
+The revision view summarizes change classifications and identifies the content that must return to the review queue. Unchanged and equivalently relocated slices retain their previous decisions.
+
+![Revision comparison](docs/evidence/revision-comparison.png)
+
+## Run locally
+
+Install dependencies and start the Vite renderer with Electron.
 
 ```bash
 npm ci
 npm run dev
 ```
 
-## Verify source code
+Production starts with an empty local workspace. Import an artifact to create the first review project.
 
-Run the complete local verification suite.
+## Verify the source
+
+Run type checking, module tests, and production builds together.
 
 ```bash
 npm run verify
 ```
 
-## Build Windows package
+The individual commands are `npm run typecheck`, `npm test`, and `npm run build`.
+
+## Build the Windows package
 
 Create the portable Windows x64 ZIP.
 
@@ -29,33 +63,19 @@ Create the portable Windows x64 ZIP.
 npm run dist:win
 ```
 
-The build creates `release/Review-Slice-1.0.0-x64.zip`.
+The build writes `release/Review-Slice-1.0.0-x64.zip`.
 
-## Windows deployment
+To deploy it on Windows 11:
 
-1. Copy `Review-Slice-1.0.0-x64.zip` to the Windows 11 computer.
-2. Extract the ZIP to a local directory.
-3. Open the extracted directory.
+1. Copy the ZIP to the target computer.
+2. Extract it to a local directory.
+3. Keep all extracted files together.
 4. Run `Review Slice.exe`.
 
-Keep all extracted files in the same directory.
-The application does not need a network connection.
-The first launch opens an empty local workspace. Import an artifact to create the first review project.
+## Local state and evidence
 
-## Review visual references
+Review projects, findings, and recovery state remain in Electron's local user-data storage. The application maintains primary and backup records and shows the local application-data location in the interface. Export actions write selected evidence files through a local save dialog.
 
-Files in `docs/evidence` can show the interface from an earlier run.
-Treat these files as visual references only.
-Do not use these files as current release evidence.
+Create a new Assured run for each release. Release approval should use the completion record, timeline, verification results, and governed view captures from that run, matched to the exact source revision and package hash.
 
-## Review governed evidence
-
-Create a new Assured run for each release.
-Use the completion record, timeline, verification results, and captured views from that run as governed records.
-Match the source revision and package hash before release approval.
-
-## Find local data
-
-The dashboard and review workspace show the local data path.
-Review projects, backup state, and findings remain inside Electron's local user-data directory.
-The export action creates an evidence ZIP through a local save dialog.
+The images in [`docs/evidence`](docs/evidence) are current product screenshots captured from the deterministic demonstration workspace. They document the interface; they are not governed release evidence.
