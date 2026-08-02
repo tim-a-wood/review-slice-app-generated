@@ -1,67 +1,69 @@
-export type Page = "dashboard" | "import" | "review" | "revisions" | "mappings" | "findings" | "exports";
-export type ReviewState = "not-reviewed" | "accepted" | "finding" | "question" | "skipped" | "re-review-required";
-export type RevisionState = "unchanged" | "modified" | "added" | "removed" | "relocated" | "unmatched";
+import type {
+  ArtifactImportResult,
+  ArtifactInput,
+  ArtifactSlice,
+  CompareOptions,
+  DirectoryImportOptions,
+  ImportFailureCode,
+  ImportWarning,
+  ManualMappingSet,
+  ReviewerMapping,
+  RevisionComparison,
+  SlicingOptions,
+} from "../capabilities/modules/mod.artifact-processing/src/index.ts";
 
-export interface SliceSource {
-  path: string;
-  startOffset: number;
-  endOffset: number;
-  startLine: number;
-  endLine: number;
-  locator?: string;
+interface SerializedArtifactError {
+  code: ImportFailureCode;
+  message: string;
+  sourcePath: string;
+  recovery: string;
 }
 
-export interface Slice {
-  id: string;
-  title: string;
-  content: string;
-  location: string;
-  sequence: number;
-  reviewState: ReviewState;
-  revisionState: RevisionState;
-  findingIds: string[];
-  matchKey?: string;
-  artifactId?: string;
-  sourceHash?: string;
-  contentHash?: string;
-  source?: SliceSource;
-  priorReviewState?: ReviewState;
-  note?: string;
-  skipReason?: string;
+type ArtifactIpcResult<T> =
+  | { ok: true; value: T; diagnostics: ImportWarning[] }
+  | { ok: false; error: SerializedArtifactError; diagnostics: ImportWarning[] };
+
+type ArtifactSyncResult<T> =
+  | { ok: true; value: T }
+  | { ok: false; error: SerializedArtifactError };
+
+interface DesktopArtifactBridge {
+  importArtifact(input: ArtifactInput, options?: SlicingOptions): Promise<ArtifactIpcResult<ArtifactImportResult>>;
+  importLocalArtifact(
+    options?: SlicingOptions,
+    directoryOptions?: DirectoryImportOptions,
+  ): Promise<ArtifactIpcResult<ArtifactImportResult>>;
+  compareRevisions(
+    previous: readonly ArtifactSlice[],
+    current: readonly ArtifactSlice[],
+    options?: CompareOptions,
+  ): Promise<ArtifactIpcResult<RevisionComparison>>;
+  createManualMappingSet(
+    previous: readonly ArtifactSlice[],
+    current: readonly ArtifactSlice[],
+    mappings: readonly ReviewerMapping[],
+    recordedAt: string,
+  ): ArtifactSyncResult<ManualMappingSet>;
+  parseManualMappingSet(json: string): ArtifactSyncResult<ManualMappingSet>;
 }
 
-export interface Finding {
-  id: string;
-  type: "Defect" | "Question" | "Improvement";
-  description: string;
-  status: "Open" | "Addressed" | "Verified" | "Rejected" | "Deferred";
-  sliceId: string;
-  createdAt: string;
-}
-
-export interface RevisionSummary {
-  importedAt: string;
-  counts: Record<RevisionState, number>;
-  previousProjectName?: string;
-}
-
-export interface AppState {
-  projectName: string;
-  dataPath: string;
-  slices: Slice[];
-  findings: Finding[];
-  activeSliceId: string;
-  updatedAt: string;
-  hasImportedArtifact?: boolean;
-  revision?: RevisionSummary;
-}
-
-export interface DesktopApi {
-  load(): Promise<AppState>;
-  save(state: AppState): Promise<void>;
-  importArtifact(): Promise<AppState | undefined>;
-  exportEvidence(state: AppState): Promise<string>;
+interface ReviewSliceDesktopBridge {
+  readonly artifact: DesktopArtifactBridge;
   dataPath(): Promise<string>;
+  saveFile(name: string, content: Uint8Array, mediaType: string): Promise<void>;
 }
 
-declare global { interface Window { reviewSlice?: DesktopApi; } }
+declare global {
+  interface Window {
+    reviewSliceDesktop?: ReviewSliceDesktopBridge;
+  }
+}
+
+export type {
+  ArtifactIpcResult,
+  ArtifactSyncResult,
+  ReviewSliceDesktopBridge,
+  SerializedArtifactError,
+};
+
+export {};

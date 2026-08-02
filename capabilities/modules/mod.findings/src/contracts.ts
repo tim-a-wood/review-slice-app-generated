@@ -10,7 +10,6 @@ export const FINDING_TYPES = [
 ] as const;
 
 export const FINDING_STATUSES = ["Open", "Addressed", "Verified", "Rejected", "Deferred"] as const;
-
 export const FINDING_SEVERITIES = ["Critical", "Major", "Minor", "Info"] as const;
 
 export type FindingType = (typeof FINDING_TYPES)[number];
@@ -18,78 +17,122 @@ export type FindingStatus = (typeof FINDING_STATUSES)[number];
 export type FindingSeverity = (typeof FINDING_SEVERITIES)[number];
 
 export interface SourceLocation {
-  artifactId: string;
-  path: string;
-  sliceId: string;
-  location: string;
-  title: string;
+  readonly projectId: string;
+  readonly revisionId: string;
+  readonly artifactId: string;
+  readonly sliceId: string;
+  readonly path: string;
+  readonly location: string;
+  readonly title: string;
+  readonly startOffset?: number;
+  readonly endOffset?: number;
+  readonly startLine?: number;
+  readonly endLine?: number;
+  readonly locator?: string;
 }
 
 export interface EvidenceAttachment {
-  name: string;
-  path: string;
-  mediaType: string;
-  sizeBytes: number;
-  addedAt: string;
+  readonly id: string;
+  readonly name: string;
+  readonly path: string;
+  readonly mediaType: string;
+  readonly contentHash: string;
+  readonly sizeBytes: number;
+  readonly addedAt: string;
+}
+
+export interface FindingVerification {
+  readonly id: string;
+  readonly revisionId: string;
+  readonly source: SourceLocation;
+  readonly verifiedAt: string;
+  readonly note?: string;
 }
 
 export interface FindingHistory {
-  at: string;
-  action: "Created" | "Updated" | "Status changed" | "Verified";
-  status: FindingStatus;
-  note?: string;
+  readonly id: string;
+  readonly at: string;
+  readonly action: "Created" | "Edited" | "Status changed" | "Evidence added" | "Verified";
+  readonly status: FindingStatus;
+  readonly note?: string;
+  readonly previousStatus?: FindingStatus;
 }
 
 export interface Finding {
-  id: string;
-  type: FindingType;
-  status: FindingStatus;
-  description: string;
-  source: SourceLocation;
-  createdAt: string;
-  updatedAt: string;
-  severity?: FindingSeverity;
-  resolutionNote?: string;
-  externalReference?: string;
-  relatedFindingId?: string;
-  evidence?: EvidenceAttachment[];
-  verifiedRevisionId?: string;
-  verifiedAt?: string;
-  history: readonly FindingHistory[];
+  readonly id: string;
+  readonly type: FindingType;
+  readonly status: FindingStatus;
+  readonly description: string;
+  readonly source: SourceLocation;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+  readonly severity?: FindingSeverity;
+  readonly resolution?: string;
+  readonly externalReference?: string;
+  readonly relatedFindingId?: string;
+  readonly evidenceAttachments: readonly EvidenceAttachment[];
+  readonly verifications: readonly FindingVerification[];
+  readonly history: readonly FindingHistory[];
 }
 
 export interface CreateFindingInput {
-  type: FindingType;
-  description: string;
-  source: SourceLocation;
-  severity?: FindingSeverity;
-  externalReference?: string;
-  relatedFindingId?: string;
-  evidence?: EvidenceAttachment[];
+  readonly id?: string;
+  readonly type: FindingType;
+  readonly description: string;
+  readonly source: SourceLocation;
+  readonly severity?: FindingSeverity;
+  readonly resolution?: string;
+  readonly externalReference?: string;
+  readonly relatedFindingId?: string;
+  readonly evidenceAttachments?: readonly EvidenceAttachment[];
 }
 
-export interface UpdateFindingInput {
-  description?: string;
-  severity?: FindingSeverity;
-  resolutionNote?: string;
-  externalReference?: string;
-  relatedFindingId?: string;
-  evidence?: EvidenceAttachment[];
+export interface EditFindingInput {
+  readonly type?: FindingType;
+  readonly description?: string;
+  readonly source?: SourceLocation;
+  readonly severity?: FindingSeverity | null;
+  readonly resolution?: string | null;
+  readonly externalReference?: string | null;
+  readonly relatedFindingId?: string | null;
 }
 
 export interface FindingFilter {
-  query?: string;
-  status?: FindingStatus;
-  type?: FindingType;
-  severity?: FindingSeverity;
-  sliceId?: string;
+  readonly query?: string;
+  readonly projectId?: string;
+  readonly revisionId?: string;
+  readonly artifactId?: string;
+  readonly sliceId?: string;
+  readonly type?: FindingType;
+  readonly status?: FindingStatus;
+  readonly severity?: FindingSeverity;
+  readonly createdFrom?: string;
+  readonly createdTo?: string;
+}
+
+export interface FindingsSnapshot {
+  readonly schemaVersion: "1.0";
+  readonly generation: number;
+  readonly findings: readonly Finding[];
 }
 
 export interface FindingsPersistence {
-  load(): Promise<readonly Finding[]>;
-  save(findings: readonly Finding[]): Promise<void>;
+  load(): Promise<FindingsSnapshot | undefined>;
+  save(snapshot: FindingsSnapshot): Promise<void>;
 }
 
 export interface SourceNavigator {
   openSource(source: SourceLocation): void | Promise<void>;
+}
+
+export interface FindingsClock { now(): string; }
+export interface FindingsIdentifierSource {
+  next(kind: "finding" | "history" | "verification"): string;
+}
+
+export interface FindingsManagementOptions {
+  readonly persistence: FindingsPersistence;
+  readonly navigator: SourceNavigator;
+  readonly clock?: FindingsClock;
+  readonly identifiers?: FindingsIdentifierSource;
 }

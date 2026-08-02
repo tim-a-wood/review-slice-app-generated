@@ -4,43 +4,58 @@ Review Slice is a local desktop application for source-linked technical reviews.
 The application stores review state in the Electron user data directory.
 The application writes a primary JSON file and a recoverable backup.
 
-## Assured evidence
-
-The final capture shows the review workspace at 1440 x 960.
-The capture record reports completed views.
-
-![Review workspace](docs/evidence/review-workspace.png)
-
-Read the [Assured evidence ledger](docs/evidence/assured-mode-evidence.md).
-
 ## Run application
 
-Install dependencies in the overlay directory.
+Install dependencies in the repository directory.
 
 ```bash
-npm install --package-lock=false
+npm ci
 npm run dev
 ```
 
-## Verify application
+## Verify source code
 
-Run the required local checks.
+Run the complete local verification suite.
 
 ```bash
-npm run typecheck
-npm test
-npm run build
+npm run verify
 ```
 
-## Package installer
+## Build Windows package
 
-Create a Windows x64 NSIS installer.
+Create the portable Windows x64 ZIP.
 
 ```bash
 npm run dist:win
 ```
 
-## Data path
+The build creates `release/Review-Slice-1.0.0-x64.zip`.
+
+## Windows deployment
+
+1. Copy `Review-Slice-1.0.0-x64.zip` to the Windows 11 computer.
+2. Extract the ZIP to a local directory.
+3. Open the extracted directory.
+4. Run `Review Slice.exe`.
+
+Keep all extracted files in the same directory.
+The application does not need a network connection.
+The first launch opens an empty local workspace. Import an artifact to create the first review project.
+
+## Review visual references
+
+Files in `docs/evidence` can show the interface from an earlier run.
+Treat these files as visual references only.
+Do not use these files as current release evidence.
+
+## Review governed evidence
+
+Create a new Assured run for each release.
+Use the completion record, timeline, verification results, and captured views from that run as governed records.
+Match the source revision and package hash before release approval.
+
+## Find local data
 
 The dashboard and review workspace show the local data path.
+Review projects, backup state, and findings remain inside Electron's local user-data directory.
 The export action creates an evidence ZIP through a local save dialog.

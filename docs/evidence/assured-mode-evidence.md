@@ -1,6 +1,10 @@
-# Assured mode evidence
+# Historical evidence ledger
 
-This ledger records the supplied Assured mode evidence.
+Classification: Historical.
+
+This ledger preserves supplied Assured mode evidence from a prior application run.
+This record is not current release evidence.
+This record is not final release evidence.
 It contains no local paths or source content.
 
 ## Planning
@@ -17,7 +21,9 @@ It contains no local paths or source content.
 - Design baseline: approved.
 - Baseline checks: passed.
 
-## Implementation runs
+## Historical implementation runs
+
+Run classification: Historical.
 
 - Run 1 implemented artifact processing. The application record shows applied.
 - Run 2 implemented evidence export. The application record shows applied.
@@ -31,16 +37,18 @@ It contains no local paths or source content.
 Each inspected overlay was eligible for application.
 Each listed run has an application record.
 
-## Verification
+## Historical verification
 
-The compose run recorded failed typecheck and build results.
+The Historical compose run recorded failed typecheck and build results.
 Its test result passed.
-The repair run recorded passed typecheck, test, and build results.
-The final run recorded passed typecheck, test, and build results.
+The Historical repair run recorded passed typecheck, test, and build results.
+The Historical final run recorded passed typecheck, test, and build results.
 
-## Capture
+## Historical capture
 
-The final capture recorded four completed views at 1440 x 960.
+Capture classification: Historical.
+
+The Historical capture recorded four completed views at 1440 x 960.
 
 | View | File | SHA-256 |
 | --- | --- | --- |

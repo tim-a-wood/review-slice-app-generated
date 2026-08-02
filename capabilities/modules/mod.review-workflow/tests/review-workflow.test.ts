@@ -1,71 +1,117 @@
-import { Clock, IdentifierSource, ProjectStore, ReviewProject, ReviewSlice } from "../src/contracts";
-import { PersistenceCoordinator } from "../src/persistence";
-import { ReviewWorkflow } from "../src/review-workflow";
+import assert from "node:assert/strict";
+import test from "node:test";
+import { createReviewWorkflow } from "../src/index.ts";
+import type {
+  PersistedWorkflowEnvelope,
+  WorkflowClock,
+  WorkflowIdentifierSource,
+  WorkflowPersistencePort,
+} from "../src/index.ts";
 
-class Store implements ProjectStore {
-  public primary = new Map<string, ReviewProject>();
-  public backup = new Map<string, ReviewProject>();
+class MemoryPersistence implements WorkflowPersistencePort {
+  public primary?: PersistedWorkflowEnvelope;
+  public backup?: PersistedWorkflowEnvelope;
   public primaryWrites = 0;
   public backupWrites = 0;
-  public async loadPrimary(id: string): Promise<ReviewProject | undefined> { return this.primary.get(id); }
-  public async loadBackup(id: string): Promise<ReviewProject | undefined> { return this.backup.get(id); }
-  public async savePrimary(project: ReviewProject): Promise<void> { this.primaryWrites++; this.primary.set(project.id, project); }
-  public async saveBackup(project: ReviewProject): Promise<void> { this.backupWrites++; this.backup.set(project.id, project); }
+  public loadPrimary = async () => this.primary;
+  public loadBackup = async () => this.backup;
+  public savePrimary = async (value: PersistedWorkflowEnvelope) => { this.primaryWrites += 1; this.primary = structuredClone(value); };
+  public saveBackup = async (value: PersistedWorkflowEnvelope) => { this.backupWrites += 1; this.backup = structuredClone(value); };
 }
 
-class TestClock implements Clock {
-  private value = 0;
-  public now(): string { return `2026-08-01T00:00:${String(this.value++).padStart(2, "0")}Z`; }
-}
+const deterministicPorts = () => {
+  let tick = 0;
+  let identifier = 0;
+  const clock: WorkflowClock = { now: () => `2026-08-01T00:00:${String(tick++).padStart(2, "0")}.000Z` };
+  const identifiers: WorkflowIdentifierSource = { next: (kind) => `${kind}-${++identifier}` };
+  return { clock, identifiers };
+};
 
-class TestIdentifiers implements IdentifierSource {
-  private value = 0;
-  public next(): string { return `history-${++this.value}`; }
-}
+const revision = (id: string, changed = false) => ({
+  id,
+  label: id,
+  fileName: "spec.md",
+  fileHash: `file-${id}`,
+  artifactType: "markdown",
+  parserVersion: "1.0.0",
+  slices: [
+    { id: `${id}-2`, stableMatchKey: "section-b", title: "Limits", content: changed ? "Changed" : "Original", contentHash: changed ? "changed" : "same-b", sequence: 2, revisionState: changed ? "modified" as const : "added" as const, source: { artifactId: id, path: "C:\\reviews\\spec.md", location: "Section 2" } },
+    { id: `${id}-1`, stableMatchKey: "section-a", title: "Scope", content: "Stable", contentHash: "same-a", sequence: 1, revisionState: changed ? "unchanged" as const : "added" as const, source: { artifactId: id, path: "C:\\reviews\\spec.md", location: "Section 1" } },
+  ],
+});
 
-function slice(sequence: number): ReviewSlice {
-  return {
-    id: `slice-${sequence}`,
-    matchKey: `key-${sequence}`,
-    title: `Slice ${sequence}`,
-    sequence,
-    source: { artifactId: "artifact-1", path: "C:\\review\\input.md", location: `line ${sequence}` },
-    revisionState: "unchanged",
-    contentHash: `hash-${sequence}`,
-    reviewState: "not-reviewed",
-    notes: [],
+test("manages multiple projects, revisions, decisions, filtering, and queued autosave", async () => {
+  const persistence = new MemoryPersistence();
+  const ports = deterministicPorts();
+  const workflow = await createReviewWorkflow({ persistence, ...ports });
+  const first = await workflow.createProject({ id: "project-b", name: "Second", initialRevision: revision("r1") });
+  await workflow.createProject({ id: "project-a", name: "First" });
+  await workflow.renameProject("project-a", "First renamed");
+  await workflow.setProjectArchived("project-a", true);
+  assert.equal(workflow.activeProject(), undefined, "archiving the active project clears the active selection");
+  await workflow.setProjectArchived("project-a", false);
+  await workflow.openProject(first.id);
+
+  await workflow.decide(first.id, "r1-1", "accepted", "Source checked.");
+  await workflow.skip(first.id, "r1-2", "Outside the approved scope");
+  await workflow.addNote(first.id, "r1-1", "Requirement identifier is traceable.");
+  const next = await workflow.addRevision(first.id, revision("r2", true));
+
+  assert.equal(next.slices[0].id, "r2-1", "slices are ordered deterministically");
+  assert.equal(next.slices[0].reviewState, "accepted", "unchanged decisions are inherited");
+  assert.equal(next.slices[1].reviewState, "re-review-required", "modified slices return to the queue");
+  assert.equal(workflow.activeSlice(first.id)?.id, "r2-2");
+  assert.equal(workflow.listSlices(first.id, { reviewStates: ["re-review-required"] })[0].id, "r2-2");
+  await workflow.selectSlice(first.id, "r2-1");
+  assert.equal((await workflow.navigate(first.id, "next", { revisionStates: ["modified"] }))?.id, "r2-2");
+  assert.equal(await workflow.navigate(first.id, "next", { revisionStates: ["modified"] }), undefined);
+  assert.equal(persistence.primaryWrites, persistence.backupWrites);
+  assert.ok(persistence.primaryWrites >= 10, "every mutation is saved immediately");
+  assert.deepEqual(workflow.snapshot().projects.map((project) => project.id), ["project-a", "project-b"]);
+});
+
+test("inherits a disposition through an explicit reviewer-confirmed mapping", async () => {
+  const workflow = await createReviewWorkflow({ persistence: new MemoryPersistence(), ...deterministicPorts() });
+  const project = await workflow.createProject({ id: "mapped", name: "Mapped review", initialRevision: revision("r1") });
+  await workflow.decide(project.id, "r1-1", "accepted");
+
+  const mappedRevision = revision("r2");
+  const mappedScope = {
+    ...mappedRevision.slices[1],
+    id: "r2-renamed-scope",
+    stableMatchKey: "renamed-section-a",
+    revisionState: "relocated" as const,
+    previousSliceId: "r1-1",
   };
-}
+  const next = await workflow.addRevision(project.id, {
+    ...mappedRevision,
+    slices: [mappedRevision.slices[0], mappedScope],
+  });
 
-function check(condition: unknown, message: string): asserts condition {
-  if (!condition) throw new Error(message);
-}
+  const carried = next.slices.find((slice) => slice.id === mappedScope.id);
+  assert.equal(carried?.reviewState, "accepted");
+  assert.equal(carried?.previousSliceId, "r1-1");
+  assert.equal(carried?.previousReviewState, "accepted");
+});
 
-export async function runReviewWorkflowTests(): Promise<void> {
-  const store = new Store();
-  const clock = new TestClock();
-  const identifiers = new TestIdentifiers();
-  const persistence = new PersistenceCoordinator(store);
-  const slices = Array.from({ length: 5000 }, (_, index) => slice(5000 - index));
-  const workflow = await ReviewWorkflow.create({ id: "project-1", name: "Review", slices }, persistence, clock, identifiers);
+test("requires skip reasons and recovers the newest valid backup with metadata", async () => {
+  const persistence = new MemoryPersistence();
+  const ports = deterministicPorts();
+  const workflow = await createReviewWorkflow({ persistence, ...ports });
+  await workflow.createProject({ id: "project-1", name: "Review", initialRevision: revision("r1") });
+  await assert.rejects(workflow.skip("project-1", "r1-1", " "), /needs a reason/);
+  persistence.primary = undefined;
 
-  check(workflow.snapshot().slices[0].id === "slice-1", "The workflow must order navigation by sequence.");
-  await workflow.navigate("next");
-  check(workflow.activeSlice()?.id === "slice-1", "Next must select the first slice.");
-  await workflow.decide("slice-1", "accepted");
-  await workflow.addNote("slice-1", "  Checked source link.  ");
-  const first = workflow.activeSlice()!;
-  check(first.reviewState === "accepted" && first.notes[0] === "Checked source link.", "The workflow must save decisions and notes.");
-  check(store.primaryWrites === store.backupWrites && store.primaryWrites >= 4, "Each change must save the primary and backup stores.");
+  const resumed = await createReviewWorkflow({ persistence, ...deterministicPorts() });
+  assert.equal(resumed.getProject("project-1")?.revisions[0].slices[0].source.path, "C:\\reviews\\spec.md");
+  assert.equal(resumed.recoveryMetadata().source, "backup");
+  assert.equal(resumed.recoveryMetadata().recovered, true);
+});
 
-  let rejected = false;
-  try { await workflow.skip("slice-2", " "); } catch { rejected = true; }
-  check(rejected, "Skip must require a reason.");
-  await workflow.skip("slice-2", "Outside review scope");
-  check(workflow.snapshot().slices[1].skipReason === "Outside review scope", "Skip must retain its reason.");
-
-  store.primary.clear();
-  const resumed = await ReviewWorkflow.resume("project-1", persistence, clock, identifiers);
-  check(resumed?.activeSlice()?.source.path === "C:\\review\\input.md", "Recovery must preserve exact source links.");
-  check(resumed?.snapshot().history.at(-1)?.action === "recovery", "Recovery must record its event.");
-}
+test("deletes only the selected project and preserves the other project state", async () => {
+  const workflow = await createReviewWorkflow({ persistence: new MemoryPersistence(), ...deterministicPorts() });
+  await workflow.createProject({ id: "keep", name: "Keep" });
+  await workflow.createProject({ id: "delete", name: "Delete" });
+  await workflow.deleteProject("delete");
+  assert.deepEqual(workflow.snapshot().projects.map((project) => project.id), ["keep"]);
+});

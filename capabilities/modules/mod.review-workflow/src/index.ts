@@ -1,3 +1,3 @@
-export * from "./contracts";
-export * from "./persistence";
-export * from "./review-workflow";
+export * from "./contracts.ts";
+export * from "./persistence.ts";
+export { ReviewWorkflow, createReviewWorkflow } from "./review-workflow.ts";

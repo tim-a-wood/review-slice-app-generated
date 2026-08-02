@@ -3,5 +3,6 @@ dist/
 dist-electron/
 .test-out/
 release/
+.euik-design-backups/
 *.zip
 *.log

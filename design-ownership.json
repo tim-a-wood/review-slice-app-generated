@@ -1,0 +1,285 @@
+{
+  "schemaVersion": "1.0",
+  "entries": [
+    {
+      "path": "capabilities/modules/mod.artifact-processing/README.md",
+      "contentHash": "93790843541f3bd41e591a341295e9b10209d037da5fff5b3dcb5ffd4218836b",
+      "sourcePacketId": "8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-artifact-processing-createmoduleimplementationp-f215aab6519d",
+      "planId": "inspection.8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-artifact-processing-createmoduleimplementationp-f215aab6519d.delta.assured-mvp-r2.plan",
+      "updatedAt": "2026-08-01T17:41:32.340Z"
+    },
+    {
+      "path": "capabilities/modules/mod.artifact-processing/src/compare.ts",
+      "contentHash": "88bf3cea724330571d21569c2f86a2c1a73687cd9868c23e45b8a42be609d9b9",
+      "sourcePacketId": "8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-artifact-processing-createmoduleimplementationp-f215aab6519d",
+      "planId": "inspection.8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-artifact-processing-createmoduleimplementationp-f215aab6519d.delta.assured-mvp-r2.plan",
+      "updatedAt": "2026-08-01T17:41:32.340Z"
+    },
+    {
+      "path": "capabilities/modules/mod.artifact-processing/src/contracts.ts",
+      "contentHash": "a8852f06fe146887c838e37a991e0642c52300c9b191c3d97f8384959e773e46",
+      "sourcePacketId": "8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-artifact-processing-createmoduleimplementationp-f215aab6519d",
+      "planId": "inspection.8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-artifact-processing-createmoduleimplementationp-f215aab6519d.delta.assured-mvp-r2.plan",
+      "updatedAt": "2026-08-01T17:41:32.340Z"
+    },
+    {
+      "path": "capabilities/modules/mod.artifact-processing/src/importer.ts",
+      "contentHash": "eead807836e740c51abb2c00934513d9106f2d42a3fa12efc4472d97dd8cf757",
+      "sourcePacketId": "8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-artifact-processing-createmoduleimplementationp-f215aab6519d",
+      "planId": "inspection.8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-artifact-processing-createmoduleimplementationp-f215aab6519d.delta.assured-mvp-r2.plan",
+      "updatedAt": "2026-08-01T17:41:32.340Z"
+    },
+    {
+      "path": "capabilities/modules/mod.artifact-processing/src/index.ts",
+      "contentHash": "9533ea189b49c60e00371cddc5f1e8509ae17546d41fff86b61c6001c49afd07",
+      "sourcePacketId": "8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-artifact-processing-createmoduleimplementationp-f215aab6519d",
+      "planId": "inspection.8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-artifact-processing-createmoduleimplementationp-f215aab6519d.delta.assured-mvp-r2.plan",
+      "updatedAt": "2026-08-01T17:41:32.340Z"
+    },
+    {
+      "path": "capabilities/modules/mod.artifact-processing/src/parsers.ts",
+      "contentHash": "78460e3ded0b0f1d23453bc429e299e6dcfae24ac0ff10184cdebfdde151c8e5",
+      "sourcePacketId": "8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-artifact-processing-createmoduleimplementationp-f215aab6519d",
+      "planId": "inspection.8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-artifact-processing-createmoduleimplementationp-f215aab6519d.delta.assured-mvp-r2.plan",
+      "updatedAt": "2026-08-01T17:41:32.340Z"
+    },
+    {
+      "path": "capabilities/modules/mod.artifact-processing/src/service.ts",
+      "contentHash": "1585ffe21814823cb5aeecbbd87191e3c96f3ac307d811070cee859b931cf763",
+      "sourcePacketId": "8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-artifact-processing-createmoduleimplementationp-f215aab6519d",
+      "planId": "inspection.8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-artifact-processing-createmoduleimplementationp-f215aab6519d.delta.assured-mvp-r2.plan",
+      "updatedAt": "2026-08-01T17:41:32.340Z"
+    },
+    {
+      "path": "capabilities/modules/mod.artifact-processing/src/styles.css",
+      "contentHash": "316b7352975cadbde41e1c5e1aacf00a58a38ac6afc694775802db6b8e6427e7",
+      "sourcePacketId": "8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-artifact-processing-createmoduleimplementationp-f215aab6519d",
+      "planId": "inspection.8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-artifact-processing-createmoduleimplementationp-f215aab6519d.delta.assured-mvp-r2.plan",
+      "updatedAt": "2026-08-01T17:41:32.340Z"
+    },
+    {
+      "path": "capabilities/modules/mod.artifact-processing/src/text.ts",
+      "contentHash": "38da2736db9634e0a4ab0aba1bff61d857c58c457285ee4652c8442425cbfd06",
+      "sourcePacketId": "8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-artifact-processing-createmoduleimplementationp-f215aab6519d",
+      "planId": "inspection.8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-artifact-processing-createmoduleimplementationp-f215aab6519d.delta.assured-mvp-r2.plan",
+      "updatedAt": "2026-08-01T17:41:32.340Z"
+    },
+    {
+      "path": "capabilities/modules/mod.artifact-processing/src/ui.ts",
+      "contentHash": "f0f8a7aa7398f532b50820d4fec4f5ff5f0eb06f7c9ed2f852673324595358b0",
+      "sourcePacketId": "8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-artifact-processing-createmoduleimplementationp-f215aab6519d",
+      "planId": "inspection.8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-artifact-processing-createmoduleimplementationp-f215aab6519d.delta.assured-mvp-r2.plan",
+      "updatedAt": "2026-08-01T17:41:32.340Z"
+    },
+    {
+      "path": "capabilities/modules/mod.artifact-processing/tests/artifact-processing.test.ts",
+      "contentHash": "11fcc9685569eea2ecde259f9dcc6acc4bf822496a41cc79d6f9607eda2780d1",
+      "sourcePacketId": "8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-artifact-processing-createmoduleimplementationp-f215aab6519d",
+      "planId": "inspection.8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-artifact-processing-createmoduleimplementationp-f215aab6519d.delta.assured-mvp-r2.plan",
+      "updatedAt": "2026-08-01T17:41:32.340Z"
+    },
+    {
+      "path": "capabilities/modules/mod.evidence-export/src/EvidenceExportPanel.ts",
+      "contentHash": "8763b4e1c2eb7441868823ba3dd1c54b17b7054207240aadbdee9d314c92126d",
+      "sourcePacketId": "8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-evidence-export-createmoduleimplementationpacke-897b9b78d294",
+      "planId": "inspection.8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-evidence-export-createmoduleimplementationpacke-897b9b78d294.delta.assured-evidence-export-r2.plan",
+      "updatedAt": "2026-08-01T17:45:01.428Z"
+    },
+    {
+      "path": "capabilities/modules/mod.evidence-export/src/contracts.ts",
+      "contentHash": "1f11116e16c024cc18b525a384eb432ad548bce8970203c1a3c17de3a8b34daa",
+      "sourcePacketId": "8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-evidence-export-createmoduleimplementationpacke-897b9b78d294",
+      "planId": "inspection.8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-evidence-export-createmoduleimplementationpacke-897b9b78d294.delta.assured-evidence-export-r2.plan",
+      "updatedAt": "2026-08-01T17:45:01.428Z"
+    },
+    {
+      "path": "capabilities/modules/mod.evidence-export/src/evidence-export.css",
+      "contentHash": "1add9370bf4815186a77ce1d8bf7e119ba47816107e2c87bb969965ab1a7345c",
+      "sourcePacketId": "8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-evidence-export-createmoduleimplementationpacke-897b9b78d294",
+      "planId": "inspection.8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-evidence-export-createmoduleimplementationpacke-897b9b78d294.delta.assured-evidence-export-r2.plan",
+      "updatedAt": "2026-08-01T17:45:01.428Z"
+    },
+    {
+      "path": "capabilities/modules/mod.evidence-export/src/evidence-export.test.ts",
+      "contentHash": "aab942ef223ff818d17d7cf95b55b0d086de455463a4dc04160d18ea6b98ba9a",
+      "sourcePacketId": "8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-evidence-export-createmoduleimplementationpacke-897b9b78d294",
+      "planId": "inspection.8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-evidence-export-createmoduleimplementationpacke-897b9b78d294.delta.assured-evidence-export-r2.plan",
+      "updatedAt": "2026-08-01T17:45:01.428Z"
+    },
+    {
+      "path": "capabilities/modules/mod.evidence-export/src/evidence-export.ts",
+      "contentHash": "14c346d6c0b669683c12b6e71bb51b9218dafe2ad144b1e1dcde18622c7b18dd",
+      "sourcePacketId": "8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-evidence-export-createmoduleimplementationpacke-897b9b78d294",
+      "planId": "inspection.8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-evidence-export-createmoduleimplementationpacke-897b9b78d294.delta.assured-evidence-export-r2.plan",
+      "updatedAt": "2026-08-01T17:45:01.428Z"
+    },
+    {
+      "path": "capabilities/modules/mod.evidence-export/src/index.ts",
+      "contentHash": "166edd6350a59dd85f9646d055742f0a24b4baf4f0979e60cab213c42000737e",
+      "sourcePacketId": "8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-evidence-export-createmoduleimplementationpacke-897b9b78d294",
+      "planId": "inspection.8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-evidence-export-createmoduleimplementationpacke-897b9b78d294.delta.assured-evidence-export-r2.plan",
+      "updatedAt": "2026-08-01T17:45:01.428Z"
+    },
+    {
+      "path": "capabilities/modules/mod.evidence-export/src/serialize.ts",
+      "contentHash": "6a1f76f808616a60c15fc315e3ebbb4a8c88f28118b9a3b1af19fa6c089f0a16",
+      "sourcePacketId": "8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-evidence-export-createmoduleimplementationpacke-897b9b78d294",
+      "planId": "inspection.8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-evidence-export-createmoduleimplementationpacke-897b9b78d294.delta.assured-evidence-export-r2.plan",
+      "updatedAt": "2026-08-01T17:45:01.428Z"
+    },
+    {
+      "path": "capabilities/modules/mod.evidence-export/src/validation.ts",
+      "contentHash": "2e834154ec7829b1f7c96cc5d575c19a9d91ae2428827eba1f511eb603355c1b",
+      "sourcePacketId": "8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-evidence-export-createmoduleimplementationpacke-897b9b78d294",
+      "planId": "inspection.8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-evidence-export-createmoduleimplementationpacke-897b9b78d294.delta.assured-evidence-export-r2.plan",
+      "updatedAt": "2026-08-01T17:45:01.428Z"
+    },
+    {
+      "path": "capabilities/modules/mod.experience-first/src/UserWorkspaceApp.ts",
+      "contentHash": "ba6de07758935c534c1de754c57e65dc1014ee80b27cb7c37e46c2d6b531679c",
+      "sourcePacketId": "8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-experience-first-createmoduleimplementationpack-2c25a62fdc2a",
+      "planId": "inspection.8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-experience-first-createmoduleimplementationpack-2c25a62fdc2a.delta.external-assured-98d1ae36b0d53302.plan",
+      "updatedAt": "2026-08-01T18:06:18.174Z"
+    },
+    {
+      "path": "capabilities/modules/mod.experience-first/src/contracts.ts",
+      "contentHash": "9dd082b721d1f9a69d681965d1d99090189f138e1fecc59978ca81a5ae7185e0",
+      "sourcePacketId": "8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-experience-first-createmoduleimplementationpack-2c25a62fdc2a",
+      "planId": "inspection.8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-experience-first-createmoduleimplementationpack-2c25a62fdc2a.delta.external-assured-98d1ae36b0d53302.plan",
+      "updatedAt": "2026-08-01T18:06:18.174Z"
+    },
+    {
+      "path": "capabilities/modules/mod.experience-first/src/dashboard-import.ts",
+      "contentHash": "5c70a12fbaf87bb27fcea5e99806f9c0139fe5735e1c35b00912e16ea362ee3c",
+      "sourcePacketId": "8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-experience-first-createmoduleimplementationpack-2c25a62fdc2a",
+      "planId": "inspection.8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-experience-first-createmoduleimplementationpack-2c25a62fdc2a.delta.external-assured-98d1ae36b0d53302.plan",
+      "updatedAt": "2026-08-01T18:06:18.174Z"
+    },
+    {
+      "path": "capabilities/modules/mod.experience-first/src/dom.ts",
+      "contentHash": "0e8999caad8a6fbe2bde217c6f0cf453e54b619405e651c491b62269ddc4b54a",
+      "sourcePacketId": "8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-experience-first-createmoduleimplementationpack-2c25a62fdc2a",
+      "planId": "inspection.8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-experience-first-createmoduleimplementationpack-2c25a62fdc2a.delta.external-assured-98d1ae36b0d53302.plan",
+      "updatedAt": "2026-08-01T18:06:18.174Z"
+    },
+    {
+      "path": "capabilities/modules/mod.experience-first/src/findings-exports.ts",
+      "contentHash": "2010d591695058bd76997ea5f908c59f8ce4fcc6e9bfb27644c47ed60238072e",
+      "sourcePacketId": "8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-experience-first-createmoduleimplementationpack-2c25a62fdc2a",
+      "planId": "inspection.8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-experience-first-createmoduleimplementationpack-2c25a62fdc2a.delta.external-assured-98d1ae36b0d53302.plan",
+      "updatedAt": "2026-08-01T18:06:18.174Z"
+    },
+    {
+      "path": "capabilities/modules/mod.experience-first/src/index.ts",
+      "contentHash": "8c62ea09855d9543a96c979c658f89ebfabe0710721d1b88f9e8b1d95b48acc4",
+      "sourcePacketId": "8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-experience-first-createmoduleimplementationpack-2c25a62fdc2a",
+      "planId": "inspection.8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-experience-first-createmoduleimplementationpack-2c25a62fdc2a.delta.external-assured-98d1ae36b0d53302.plan",
+      "updatedAt": "2026-08-01T18:06:18.174Z"
+    },
+    {
+      "path": "capabilities/modules/mod.experience-first/src/provider-services.ts",
+      "contentHash": "294fbcbc11d23f5330030df1f5a1cc836e622cf6f3eb2ab64e7ea2bbcc20fb0a",
+      "sourcePacketId": "8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-experience-first-createmoduleimplementationpack-2c25a62fdc2a",
+      "planId": "inspection.8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-experience-first-createmoduleimplementationpack-2c25a62fdc2a.delta.external-assured-98d1ae36b0d53302.plan",
+      "updatedAt": "2026-08-01T18:06:18.174Z"
+    },
+    {
+      "path": "capabilities/modules/mod.experience-first/src/review.ts",
+      "contentHash": "5ee6a8d253604b51c16be4a4568b3ab42750114436f053483fb67a9cace80af1",
+      "sourcePacketId": "8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-experience-first-createmoduleimplementationpack-2c25a62fdc2a",
+      "planId": "inspection.8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-experience-first-createmoduleimplementationpack-2c25a62fdc2a.delta.external-assured-98d1ae36b0d53302.plan",
+      "updatedAt": "2026-08-01T18:06:18.174Z"
+    },
+    {
+      "path": "capabilities/modules/mod.experience-first/src/revisions.ts",
+      "contentHash": "7454e8f551c72e6589b7fbb92613438ace6597c27e7b39ec91338f654aa10a4c",
+      "sourcePacketId": "8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-experience-first-createmoduleimplementationpack-2c25a62fdc2a",
+      "planId": "inspection.8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-experience-first-createmoduleimplementationpack-2c25a62fdc2a.delta.external-assured-98d1ae36b0d53302.plan",
+      "updatedAt": "2026-08-01T18:06:18.174Z"
+    },
+    {
+      "path": "capabilities/modules/mod.experience-first/src/shell.ts",
+      "contentHash": "fe92ec8f115a45172c89924f7005585d3eff3e1afb0d18eeabc09a06c8ab6a40",
+      "sourcePacketId": "8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-experience-first-createmoduleimplementationpack-2c25a62fdc2a",
+      "planId": "inspection.8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-experience-first-createmoduleimplementationpack-2c25a62fdc2a.delta.external-assured-98d1ae36b0d53302.plan",
+      "updatedAt": "2026-08-01T18:06:18.174Z"
+    },
+    {
+      "path": "capabilities/modules/mod.experience-first/src/styles.css",
+      "contentHash": "7adac7b758e48ed442730049b36ba6e816e3e010c5e407cfc636b969d73120fc",
+      "sourcePacketId": "8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-experience-first-createmoduleimplementationpack-2c25a62fdc2a",
+      "planId": "inspection.8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-experience-first-createmoduleimplementationpack-2c25a62fdc2a.delta.external-assured-98d1ae36b0d53302.plan",
+      "updatedAt": "2026-08-01T18:06:18.174Z"
+    },
+    {
+      "path": "capabilities/modules/mod.experience-first/src/view-model.ts",
+      "contentHash": "d014ffd9a867a58e8b086d40220d23fb4916da787bbded5643b5a5f8545248aa",
+      "sourcePacketId": "8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-experience-first-createmoduleimplementationpack-2c25a62fdc2a",
+      "planId": "inspection.8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-experience-first-createmoduleimplementationpack-2c25a62fdc2a.delta.external-assured-98d1ae36b0d53302.plan",
+      "updatedAt": "2026-08-01T18:06:18.174Z"
+    },
+    {
+      "path": "capabilities/modules/mod.findings/src/contracts.ts",
+      "contentHash": "75b819802bb7f4921d9e09a21b0c5e929d6483e758aad8cdeea68020da6021d9",
+      "sourcePacketId": "8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-findings-createmoduleimplementationpacket-d566a-12fd9b545252",
+      "planId": "inspection.8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-findings-createmoduleimplementationpacket-d566a-12fd9b545252.delta.external-assured-f6deae565f54e2f9.plan",
+      "updatedAt": "2026-08-01T17:44:18.361Z"
+    },
+    {
+      "path": "capabilities/modules/mod.findings/src/findings-store.ts",
+      "contentHash": "95bc3de05795920dc5704b3888e3dc9b54d0a1a27e9ce76352f7bda5401f045a",
+      "sourcePacketId": "8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-findings-createmoduleimplementationpacket-d566a-12fd9b545252",
+      "planId": "inspection.8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-findings-createmoduleimplementationpacket-d566a-12fd9b545252.delta.external-assured-f6deae565f54e2f9.plan",
+      "updatedAt": "2026-08-01T17:44:18.361Z"
+    },
+    {
+      "path": "capabilities/modules/mod.findings/src/index.ts",
+      "contentHash": "6c596f3aa98dfbb5d5248f99b1d0512927664b099947500ae5a7e8e1e3b802c8",
+      "sourcePacketId": "8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-findings-createmoduleimplementationpacket-d566a-12fd9b545252",
+      "planId": "inspection.8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-findings-createmoduleimplementationpacket-d566a-12fd9b545252.delta.external-assured-f6deae565f54e2f9.plan",
+      "updatedAt": "2026-08-01T17:44:18.361Z"
+    },
+    {
+      "path": "capabilities/modules/mod.findings/tests/findings-store.test.ts",
+      "contentHash": "b5c96c881d84465d78ac3a7fe220ad5ea0c0b4863bb00bfacec01656246655c8",
+      "sourcePacketId": "8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-findings-createmoduleimplementationpacket-d566a-12fd9b545252",
+      "planId": "inspection.8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-findings-createmoduleimplementationpacket-d566a-12fd9b545252.delta.external-assured-f6deae565f54e2f9.plan",
+      "updatedAt": "2026-08-01T17:44:18.361Z"
+    },
+    {
+      "path": "capabilities/modules/mod.review-workflow/src/contracts.ts",
+      "contentHash": "e0da73c34044615167e2f194c5a8250934318a756b1bc58362ab26751aef2182",
+      "sourcePacketId": "8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-review-workflow-createmoduleimplementationpacke-9fa96d391397",
+      "planId": "inspection.8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-review-workflow-createmoduleimplementationpacke-9fa96d391397.delta.external-assured-b9bf0dfce654785c.plan",
+      "updatedAt": "2026-08-01T17:43:37.706Z"
+    },
+    {
+      "path": "capabilities/modules/mod.review-workflow/src/index.ts",
+      "contentHash": "1945d4b7ecaeaf23150df99edfe08d7ebd5acdeef53f9374dcc565bacef958c7",
+      "sourcePacketId": "8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-review-workflow-createmoduleimplementationpacke-9fa96d391397",
+      "planId": "inspection.8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-review-workflow-createmoduleimplementationpacke-9fa96d391397.delta.external-assured-b9bf0dfce654785c.plan",
+      "updatedAt": "2026-08-01T17:43:37.706Z"
+    },
+    {
+      "path": "capabilities/modules/mod.review-workflow/src/persistence.ts",
+      "contentHash": "4edb14f25dd4918378aaf027d19f4c64263415cace95a8a07d6ae7885b3e97a7",
+      "sourcePacketId": "8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-review-workflow-createmoduleimplementationpacke-9fa96d391397",
+      "planId": "inspection.8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-review-workflow-createmoduleimplementationpacke-9fa96d391397.delta.external-assured-b9bf0dfce654785c.plan",
+      "updatedAt": "2026-08-01T17:43:37.706Z"
+    },
+    {
+      "path": "capabilities/modules/mod.review-workflow/src/review-workflow.ts",
+      "contentHash": "c33ecfd8c936342a8a387a8a380f7e788d9e89d83936b0930a8ba96e9b7c6128",
+      "sourcePacketId": "8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-review-workflow-createmoduleimplementationpacke-9fa96d391397",
+      "planId": "inspection.8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-review-workflow-createmoduleimplementationpacke-9fa96d391397.delta.external-assured-b9bf0dfce654785c.plan",
+      "updatedAt": "2026-08-01T17:43:37.706Z"
+    },
+    {
+      "path": "capabilities/modules/mod.review-workflow/tests/review-workflow.test.ts",
+      "contentHash": "08d25bae5d49cd7a7b16808b9f06efd3c21ffffc9bd447a47b9e371e07556740",
+      "sourcePacketId": "8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-review-workflow-createmoduleimplementationpacke-9fa96d391397",
+      "planId": "inspection.8baba945-603a-4565-bedf-6e50af6a254c.impl-packet.mod-review-workflow-createmoduleimplementationpacke-9fa96d391397.delta.external-assured-b9bf0dfce654785c.plan",
+      "updatedAt": "2026-08-01T17:43:37.706Z"
+    }
+  ]
+}

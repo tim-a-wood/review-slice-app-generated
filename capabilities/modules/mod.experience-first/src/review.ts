@@ -1,58 +1,68 @@
-import type { WorkspaceActions, WorkspaceState } from "./contracts.ts";
-import { button, el, input, select } from "./dom.ts";
-import { getActiveSlice, getMetrics, getSliceRows, labelState, sourceLabel } from "./view-model.ts";
+import type { ReviewSlice, WorkspaceView } from "./contracts.ts";
+import { attribute, escapeHtml, icon, pageHeading } from "./dom.ts";
+import { compareLines, label, metrics, reviewUnitSliceIds, sourceLabel, visibleSlices } from "./view-model.ts";
 
-export function renderReview(document: Document, state: WorkspaceState, actions: WorkspaceActions, redraw: () => void): HTMLElement {
-  const active = getActiveSlice(state.data); const metrics = getMetrics(state.data.slices, state.data.findings);
-  const section = el(document, "section", "review-page", { "aria-label": "Review workspace" });
-  section.append(el(document, "div", "work-summary", {}, el(document, "span", "", {}, `Slice ${active?.sequence ?? 0} of ${metrics.total}`), el(document, "span", "", {}, `${metrics.completionPercent}% complete`), el(document, "span", "", {}, `${metrics.findings} open findings`), el(document, "span", "mono", {}, state.data.dataPath)));
-  if (!active) return section.appendChild(el(document, "section", "empty-state", {}, el(document, "h2", "section-title", {}, "No slices"), el(document, "p", "muted", {}, "Import an artifact to create a review queue.")));
-  const grid = el(document, "div", "review-grid");
-  grid.append(renderNavigator(document, state, actions), renderSource(document, active), renderActions(document, active.id, state.data.slices.map((slice) => slice.id), actions, redraw));
-  section.append(grid); return section;
+const filters = ["all", "not-reviewed", "finding", "question", "re-review-required", "changed", "added", "skipped"] as const;
+
+export function renderReview(view: WorkspaceView): string {
+  const slice = view.activeSlice;
+  if (!view.project || !slice) return `<section class="eui-page">${pageHeading({ id: "review-title", eyebrow: "Review workspace", title: "Review queue", summary: "Open a project or import an artifact to begin." })}<div class="empty-state">${icon("clipboard-check")}<h2>No review queue is open</h2><p>Open a project or import an artifact to begin.</p><button class="eui-button primary" type="button" data-action="start-project">Create review</button></div></section>`;
+  const currentMetrics = metrics(view.slices, view.findings);
+  const rows = visibleSlices(view);
+  const linkedSliceIds = reviewUnitSliceIds(view.project, slice);
+  const sliceFindings = view.findings.filter((finding) => linkedSliceIds.has(finding.source.sliceId));
+  return `<section class="review-page" data-view="review" aria-labelledby="review-title">
+    <header class="review-toolbar">
+      <div class="project-crumb"><span>${escapeHtml(view.project.name)}</span>${icon("chevron-down")}<strong>${escapeHtml(view.revisionLabel ?? "Current revision")}</strong></div>
+      <div class="review-progress"><span>${currentMetrics.reviewed} of ${currentMetrics.total} reviewed</span><div class="progress-track small" role="progressbar" aria-label="Review completion" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${currentMetrics.completionPercent}"><i style="width:${currentMetrics.completionPercent}%"></i></div><strong>${currentMetrics.completionPercent}%</strong></div>
+      <button class="eui-button secondary" type="button" data-action="start-revision">${icon("git-compare")}Import revision</button>
+    </header>
+    <div class="review-workspace" data-layout-recipe="RCP-WORKBENCH-001">
+      <aside class="slice-navigator" data-region-id="context-rail" data-region-role="context" data-region-priority="2" data-surface-kind="structural-pane" data-wide-column-start="1" data-wide-column-span="1" data-wide-row-start="1" data-region-order="2" data-narrow-behavior="drawer" aria-labelledby="queue-title">
+        <div class="pane-heading"><div><p class="eyebrow">Review queue</p><h2 id="queue-title">Slices <span>${rows.length}</span></h2></div><button class="icon-button" type="button" data-action="collapse-slices" aria-label="Collapse review navigator" data-tooltip="Collapse navigator">${icon("panel-left-close")}</button></div>
+        <label class="search-control">${icon("search")}<span class="sr-only">Find slices</span><input type="search" placeholder="Find title or source" value="${attribute(view.query)}" data-field="sliceQuery"></label>
+        <div class="filter-chips" aria-label="Slice filters">${filters.map((filter) => `<button type="button" class="filter-chip ${view.filter === filter ? "is-active" : ""}" data-action="filter-slices" data-filter="${filter}" aria-pressed="${view.filter === filter}">${escapeHtml(filter === "all" ? "All" : label(filter))}</button>`).join("")}</div>
+        <div class="slice-list" role="listbox" aria-label="Review slices">${rows.length ? rows.map((item) => sliceRow(item, view)).join("") : `<div class="empty-inline"><p>No slices match this filter.</p><button class="eui-link" type="button" data-action="clear-slice-filter">Clear filter</button></div>`}</div>
+      </aside>
+      <main class="source-viewer" data-region-id="work-surface" data-region-role="primary" data-region-priority="1" data-surface-kind="primary-work-surface" data-wide-column-start="2" data-wide-column-span="1" data-wide-row-start="1" data-region-order="1" data-narrow-behavior="retain">
+        <div class="source-header">
+          <div class="state-line"><span class="status-chip ${revisionTone(slice.revisionState)}">${escapeHtml(label(slice.revisionState))}</span><span class="status-chip ${reviewTone(slice.reviewState)}">${escapeHtml(label(slice.reviewState))}</span>${slice.previousReviewState ? `<span class="prior-state">Prior: ${escapeHtml(label(slice.previousReviewState))}</span>` : ""}</div>
+          <div class="source-actions"><button class="eui-button ghost compact" type="button" data-action="toggle-diff" aria-pressed="${view.showDiff}">${icon("columns")}${view.showDiff ? "Current only" : "Compare revisions"}</button><button class="icon-button" type="button" data-action="copy-source-link" aria-label="Copy source location" data-tooltip="Copy source location">${icon("tag")}</button></div>
+        </div>
+        ${pageHeading({ id: "review-title", eyebrow: `Slice ${slice.sequence + 1} of ${view.slices.filter((item) => item.revisionState !== "removed").length}`, title: slice.title, summary: sourceLabel(slice), className: "source-title-block" })}
+        ${slice.revisionState === "modified" || slice.revisionState === "added" || slice.revisionState === "unmatched" ? `<div class="change-banner">${icon("git-compare")}<span><strong>This slice requires review.</strong> ${slice.revisionState === "modified" ? "The source differs from the previous revision." : slice.revisionState === "added" ? "This content is new in the active revision." : "No reliable prior mapping was found."}</span></div>` : ""}
+        ${view.showDiff && view.previousSlice ? renderDiff(view.previousSlice.content, slice.content) : `<article class="document-sheet" aria-label="Read-only source content"><div class="document-rule"><span>${escapeHtml(slice.source.locator ?? slice.source.location)}</span><span>Read only</span></div><pre>${escapeHtml(slice.content)}</pre></article>`}
+        ${slice.notes.length ? `<section class="review-notes" aria-labelledby="notes-title"><div class="panel-heading"><h2 id="notes-title">Review notes</h2><span>${slice.notes.length}</span></div>${slice.notes.map((note) => `<p><span>${escapeHtml(note.text)}</span><time datetime="${attribute(note.createdAt)}">${new Date(note.createdAt).toLocaleDateString()}</time></p>`).join("")}</section>` : ""}
+        ${sliceFindings.length ? `<section class="linked-findings" aria-labelledby="linked-title"><div class="panel-heading"><h2 id="linked-title">Linked findings</h2><button class="eui-link" type="button" data-action="open-findings">View register</button></div>${sliceFindings.map((finding) => `<button type="button" data-action="open-finding" data-finding-id="${attribute(finding.id)}"><span class="finding-id">${escapeHtml(finding.id)}</span><span>${escapeHtml(finding.description)}</span><span class="status-text ${finding.status === "Open" ? "warning" : "neutral"}"><i></i>${escapeHtml(finding.status)}</span></button>`).join("")}</section>` : ""}
+      </main>
+      <aside class="action-rail" data-region-id="detail-inspector" data-region-role="inspector" data-region-priority="2" data-surface-kind="structural-pane" data-wide-column-start="3" data-wide-column-span="1" data-wide-row-start="1" data-region-order="3" data-narrow-behavior="drawer" aria-labelledby="actions-title">
+        <div><p class="eyebrow">Disposition</p><h2 id="actions-title">Record review</h2><p>Each action saves immediately.</p></div>
+        <button class="rail-action accept" type="button" data-action="accept-slice">${icon("check")}<span><strong>Accept</strong><small>No unresolved concern</small></span><kbd>A</kbd></button>
+        <button class="rail-action" type="button" data-action="add-finding">${icon("triangle-alert")}<span><strong>Add finding</strong><small>Record a defect</small></span><kbd>F</kbd></button>
+        <button class="rail-action" type="button" data-action="add-question">${icon("message-square")}<span><strong>Add question</strong><small>Request clarification</small></span><kbd>Q</kbd></button>
+        <button class="rail-action" type="button" data-action="skip-slice">${icon("arrow-right")}<span><strong>Skip</strong><small>A reason is required</small></span><kbd>S</kbd></button>
+        <button class="rail-action" type="button" data-action="add-note">${icon("plus")}<span><strong>Add note</strong><small>Private review context</small></span></button>
+        <div class="rail-divider"></div>
+        <div class="slice-navigation"><button class="eui-button secondary" type="button" data-action="previous-slice">${icon("arrow-left")}Previous <kbd>K</kbd></button><button class="eui-button primary" type="button" data-action="next-slice">Next <kbd>J</kbd>${icon("arrow-right")}</button></div>
+        <div class="shortcut-guide"><span>Keyboard review</span><p><kbd>A</kbd> accept <kbd>F</kbd> finding <kbd>Q</kbd> question <kbd>S</kbd> skip</p></div>
+      </aside>
+    </div>
+  </section>`;
 }
 
-function renderNavigator(document: Document, state: WorkspaceState, actions: WorkspaceActions): HTMLElement {
-  const rail = el(document, "aside", "panel navigator", { "aria-label": "Slice navigator" });
-  rail.append(el(document, "div", "panel-heading", {}, el(document, "div", "", {}, el(document, "p", "eyebrow", {}, "Review queue"), el(document, "h2", "section-title", {}, "Slices"))));
-  const filters = el(document, "div", "filter-row"); let query = ""; let filter = "all";
-  const list = el(document, "div", "slice-list");
-  const repaint = (): void => {
-    const rows = getSliceRows(state.data, query, filter).map((row) => {
-      const item = button(document, row.slice.title, () => actions.selectSlice(row.slice.id), `slice-row ${row.active ? "is-active" : ""}`);
-      item.replaceChildren(el(document, "span", "slice-row-content", {}, el(document, "strong", "slice-title", {}, row.slice.title), el(document, "span", "table-meta", {}, `${labelState(row.slice.reviewState)} · ${labelState(row.slice.revisionState)} · ${row.findingCount} findings`)));
-      return item;
-    });
-    list.replaceChildren(...rows);
-  };
-  filters.append(input(document, "Find slices", "", (value) => { query = value; repaint(); }, { placeholder: "Search title or source", className: "field compact" }), select(document, "Filter slices", "all", ["all", "not-reviewed", "accepted", "finding", "question", "skipped", "re-review-required", "modified", "added", "unmatched"], (value) => { filter = value; repaint(); }));
-  rail.append(filters, list); repaint(); return rail;
+function sliceRow(slice: ReviewSlice, view: WorkspaceView): string {
+  const count = view.findings.filter((finding) => finding.source.sliceId === slice.id).length;
+  return `<button class="slice-row ${slice.id === view.activeSlice?.id ? "is-active" : ""}" type="button" role="option" aria-selected="${slice.id === view.activeSlice?.id}" data-action="select-slice" data-slice-id="${attribute(slice.id)}"><span class="slice-state ${reviewTone(slice.reviewState)}"></span><span class="slice-copy"><strong>${escapeHtml(slice.title)}</strong><small>${escapeHtml(slice.source.locator ?? slice.source.location)}</small><span><em class="revision-text ${revisionTone(slice.revisionState)}">${escapeHtml(label(slice.revisionState))}</em>${count ? `<em>${count} ${icon("message-square")}</em>` : ""}</span></span></button>`;
 }
 
-function renderSource(document: Document, slice: NonNullable<ReturnType<typeof getActiveSlice>>): HTMLElement {
-  const panel = el(document, "article", "panel source-viewer", { "aria-labelledby": "source-title" });
-  panel.append(el(document, "div", "panel-heading", {}, el(document, "div", "", {}, el(document, "p", "eyebrow", {}, "Read-only source"), el(document, "h2", "section-title", { id: "source-title" }, slice.title), el(document, "p", "source-location mono", {}, sourceLabel(slice)))));
-  panel.append(el(document, "div", "state-pills", {}, el(document, "span", "pill", {}, labelState(slice.reviewState)), el(document, "span", "pill", {}, labelState(slice.revisionState))));
-  if (slice.revisionState === "modified") panel.append(el(document, "p", "change-note", {}, "Changed content requires review. Inline changes use the source comparison."));
-  panel.append(el(document, "pre", "source-content", { tabindex: "0", "aria-label": "Current slice source" }, slice.content));
-  return panel;
+function renderDiff(previous: string, current: string): string {
+  return `<section class="diff-sheet" aria-label="Inline revision comparison"><header><div><span class="diff-key removed"></span>Previous revision</div><div><span class="diff-key added"></span>Current revision</div></header><div class="diff-lines">${compareLines(previous, current).map((line) => `<div class="diff-line ${line.kind}"><span>${line.oldLine ?? ""}</span><span>${line.newLine ?? ""}</span><code>${line.kind === "added" ? "+" : line.kind === "removed" ? "−" : " "} ${escapeHtml(line.text)}</code></div>`).join("")}</div></section>`;
 }
 
-function renderActions(document: Document, sliceId: string, sliceIds: readonly string[], actions: WorkspaceActions, redraw: () => void): HTMLElement {
-  const rail = el(document, "aside", "panel action-rail", { "aria-label": "Review actions" });
-  const decide = (state: "accepted" | "finding" | "question"): void => { void Promise.resolve(actions.decide(sliceId, state)).then(redraw); };
-  rail.append(el(document, "p", "eyebrow", {}, "Actions"), button(document, "Accept", () => decide("accepted"), "button primary"), button(document, "Add Finding", () => textDialog(document, "Add Finding", "Describe the finding.", async (value) => { await actions.createFinding(sliceId, "finding", value); redraw(); })), button(document, "Add Question", () => textDialog(document, "Add Question", "Describe the question.", async (value) => { await actions.createFinding(sliceId, "question", value); redraw(); })), button(document, "Skip", () => textDialog(document, "Skip Slice", "Provide a skip reason.", async (value) => { await actions.skip(sliceId, value); redraw(); })), button(document, "Add Note", () => textDialog(document, "Add Note", "Enter a review note.", async (value) => { await actions.addNote(sliceId, value); redraw(); }), "button"), el(document, "div", "rail-divider"), button(document, "Previous", () => selectNeighbor(sliceIds, sliceId, -1, actions), "button"), button(document, "Next", () => selectNeighbor(sliceIds, sliceId, 1, actions), "button"));
-  return rail;
+function reviewTone(state: ReviewSlice["reviewState"]): string {
+  return ({ accepted: "success", finding: "danger", question: "info", skipped: "quiet", "re-review-required": "warning", "not-reviewed": "neutral" } as const)[state];
 }
 
-function selectNeighbor(ids: readonly string[], id: string, direction: -1 | 1, actions: WorkspaceActions): void {
-  const target = ids[ids.indexOf(id) + direction]; if (target) void actions.selectSlice(target);
-}
-
-export function textDialog(document: Document, title: string, hint: string, submit: (value: string) => void | Promise<void>): void {
-  const opener = document.activeElement as HTMLElement | null; const dialog = document.createElement("dialog"); dialog.className = "text-dialog";
-  const field = document.createElement("textarea"); field.className = "control"; field.setAttribute("aria-label", title); field.required = true;
-  const close = (): void => { dialog.close(); dialog.remove(); opener?.focus(); };
-  dialog.append(el(document, "form", "dialog-form", { method: "dialog" }, el(document, "p", "eyebrow", {}, "Review action"), el(document, "h2", "section-title", { id: "dialog-title" }, title), el(document, "p", "muted", {}, hint), field, el(document, "p", "field-hint", {}, "A value is required."), el(document, "div", "button-row", {}, button(document, "Cancel", close, "button"), button(document, "Save", () => { if (!field.value.trim()) { field.setAttribute("aria-invalid", "true"); field.focus(); return; } void Promise.resolve(submit(field.value.trim())).then(close); }, "button primary"))));
-  dialog.setAttribute("aria-labelledby", "dialog-title"); document.body.append(dialog); dialog.addEventListener("cancel", (event) => { event.preventDefault(); close(); }); dialog.showModal(); field.focus();
+function revisionTone(state: ReviewSlice["revisionState"]): string {
+  return ({ unchanged: "quiet", modified: "warning", added: "success", removed: "danger", relocated: "info", unmatched: "neutral" } as const)[state];
 }

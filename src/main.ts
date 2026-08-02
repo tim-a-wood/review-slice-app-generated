@@ -1,60 +1,82 @@
-import "./styles.css";
-import { createDemo } from "./demo.js";
-import { activeSlice, addFinding, completion, decide, label, openFindings, select } from "./model.js";
-import type { AppState, Finding, Page, RevisionState } from "./types.js";
+import {
+  ArtifactImportError,
+  type ArtifactProcessing,
+  type ArtifactProcessingResult,
+} from "../capabilities/modules/mod.artifact-processing/src/contracts.ts";
+import { evidenceFileNames } from "../capabilities/modules/mod.evidence-export/src/index.ts";
+import {
+  createUserWorkspaceServices,
+  mountUserWorkspace,
+} from "../capabilities/modules/mod.experience-first/src/index.ts";
+import { FINDING_TYPES } from "../capabilities/modules/mod.findings/src/index.ts";
+import { REVIEW_STATES } from "../capabilities/modules/mod.review-workflow/src/index.ts";
+import type {
+  ArtifactIpcResult,
+  ArtifactSyncResult,
+  ReviewSliceDesktopBridge,
+  SerializedArtifactError,
+} from "./types.ts";
 
-const root = document.querySelector<HTMLElement>("#app")!;
-const pages: [Page, string][] = [["dashboard", "Dashboard"], ["import", "Import"], ["review", "Review"], ["revisions", "Revisions"], ["mappings", "Mappings"], ["findings", "Findings"], ["exports", "Export"]];
-const requestedPage = new URLSearchParams(window.location.search).get("page");
-let page: Page = pages.some(([id]) => id === requestedPage) ? requestedPage as Page : "review";
-let state = createDemo("Local data path unavailable.");
+const availableBridge = window.reviewSliceDesktop;
+if (!availableBridge) throw new Error("The desktop bridge is unavailable.");
+const bridge: ReviewSliceDesktopBridge = availableBridge;
 
-async function save(): Promise<void> { await window.reviewSlice?.save(state); }
-function escape(value: string): string { return value.replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]!); }
-function changePage(next: Page): void { page = next; const url = new URL(window.location.href); url.searchParams.set("page", next); window.history.replaceState({}, "", url); render(); }
-function nav(): string { return `<nav aria-label="Primary navigation">${pages.map(([id, name]) => `<button class="nav-item ${id === page ? "is-active" : ""}" data-page="${id}" aria-current="${id === page ? "page" : "false"}">${name}</button>`).join("")}</nav>`; }
-function sliceRows(): string { return state.slices.map((slice) => `<button class="slice-row ${slice.id === state.activeSliceId ? "is-active" : ""}" data-slice="${slice.id}"><strong>${escape(slice.title)}</strong><span>${label(slice.reviewState)} · ${label(slice.revisionState)} · ${slice.findingIds.length} findings</span></button>`).join(""); }
-function revisionCounts(): string {
-  if (!state.revision) return "<span>No revision comparison is available.</span>";
-  const states: RevisionState[] = ["unchanged", "modified", "added", "removed", "relocated", "unmatched"];
-  return states.map((revisionState) => `<span>${label(revisionState)} <strong class="mono">${state.revision!.counts[revisionState]}</strong></span>`).join("");
+const providerProvenance = Object.freeze({
+  artifact: "mod.artifact-processing",
+  evidence: evidenceFileNames[0],
+  findings: FINDING_TYPES[0],
+  workflow: REVIEW_STATES[0],
+});
+
+if (!providerProvenance.evidence || !providerProvenance.findings || !providerProvenance.workflow) {
+  throw new Error("The approved module providers are unavailable.");
 }
-function dashboard(): string {
-  return `<section class="page"><header><p class="eyebrow">Local review</p><h1>${escape(state.projectName)}</h1><p>Review source-linked slices and retain local evidence.</p></header><div class="stats"><div><span>Completion</span><strong>${completion(state.slices)}%</strong></div><div><span>Remaining</span><strong>${state.slices.filter((slice) => slice.revisionState !== "removed").length - Math.round(state.slices.filter((slice) => slice.revisionState !== "removed").length * completion(state.slices) / 100)}</strong></div><div><span>Open findings</span><strong>${openFindings(state.findings)}</strong></div><div><span>Re-review</span><strong>${state.slices.filter((slice) => slice.reviewState === "re-review-required").length}</strong></div></div><section class="panel"><h2>Review project</h2><p class="mono">${escape(state.dataPath)}</p><div class="button-row"><button data-page="review" class="primary">Open Review</button><button data-page="import">Import Revision</button><button data-page="exports">Export Report</button></div></section>${state.revision ? `<section class="panel"><h2>Revision counts</h2><div class="summary">${revisionCounts()}</div></section>` : ""}</section>`;
+
+const artifact: ArtifactProcessing = {
+  moduleId: "mod.artifact-processing",
+  moduleVersion: "1.0.0",
+  importArtifact: async (input, options) => hydrate(await bridge.artifact.importArtifact(input, options)),
+  importLocalPath: async (_path, options, directoryOptions) => (
+    hydrate(await bridge.artifact.importLocalArtifact(options, directoryOptions))
+  ),
+  compareRevisions: async (previous, current, options) => (
+    hydrate(await bridge.artifact.compareRevisions(previous, current, options))
+  ),
+  createManualMappingSet: (previous, current, mappings, recordedAt) => unwrap(
+    bridge.artifact.createManualMappingSet(previous, current, mappings, recordedAt),
+  ),
+  parseManualMappingSet: (json) => unwrap(bridge.artifact.parseManualMappingSet(json)),
+};
+
+function deserializeError(value: SerializedArtifactError): ArtifactImportError {
+  return new ArtifactImportError(value.code, value.message, value.sourcePath, value.recovery);
 }
-function review(): string {
-  const slice = activeSlice(state);
-  return `<section class="workspace"><aside class="panel navigator"><div><p class="eyebrow">Review queue</p><h2>Slices</h2></div><input id="slice-filter" class="control" placeholder="Find slices" aria-label="Find slices" /><div id="slice-list">${sliceRows()}</div></aside><main class="source"><div class="summary"><span>Slice ${slice.sequence} of ${state.slices.length}</span><span>${completion(state.slices)}% complete</span><span>${openFindings(state.findings)} open findings</span></div><p class="eyebrow">${label(slice.revisionState)}</p><h1>${escape(slice.title)}</h1><p class="mono">${escape(slice.location)}</p>${slice.priorReviewState ? `<p class="muted">Prior disposition: ${label(slice.priorReviewState)}</p>` : ""}<pre>${escape(slice.content)}</pre>${slice.note ? `<p class="note">Note: ${escape(slice.note)}</p>` : ""}</main><aside class="panel actions"><p class="eyebrow">Review action</p><button class="primary" data-decision="accepted">Accept <kbd>A</kbd></button><button data-finding="Defect">Add Finding <kbd>F</kbd></button><button data-finding="Question">Add Question <kbd>Q</kbd></button><button data-decision="skipped">Skip <kbd>S</kbd></button><button data-note="true">Add Note</button><div class="button-row"><button data-move="previous">Previous <kbd>K</kbd></button><button data-move="next">Next <kbd>J</kbd></button></div></aside></section>`;
+
+function hydrate<T>(result: ArtifactIpcResult<T>): ArtifactProcessingResult<T> {
+  if (result.ok) return result;
+  return { ...result, error: deserializeError(result.error) };
 }
-function importPage(): string { return `<section class="page"><header><p class="eyebrow">Import artifact</p><h1>Import source</h1><p>Create source-linked slices. Imported sources remain unchanged.</p></header><ol class="steps"><li class="is-current">1. Select artifact</li><li>2. Detect structure</li><li>3. Preview slices</li><li>4. Confirm project</li></ol><section class="panel"><h2>Select artifact</h2><p>Choose a supported local file or source directory.</p><button id="import-artifact" class="primary">Choose Artifact</button></section></section>`; }
-function revisions(): string {
-  const rows = state.slices.map((slice) => `<tr><td title="${escape(slice.title)}">${escape(slice.title)}<span class="table-meta mono">${escape(slice.location)}</span></td><td>${label(slice.revisionState)}</td><td>${label(slice.reviewState)}</td><td>${slice.priorReviewState ? label(slice.priorReviewState) : "None"}</td></tr>`).join("");
-  return `<section class="page"><header><p class="eyebrow">Revision comparison</p><h1>Revision states</h1><p>Unchanged and relocated slices retain prior review decisions.</p></header><div class="summary">${revisionCounts()}</div><section class="panel"><table><thead><tr><th>Slice</th><th>Revision</th><th>Review</th><th>Prior disposition</th></tr></thead><tbody>${rows}</tbody></table></section></section>`;
+
+function unwrap<T>(result: ArtifactSyncResult<T>): T {
+  if (result.ok) return result.value;
+  throw deserializeError(result.error);
 }
-function mappings(): string {
-  const candidates = state.slices.filter((slice) => slice.revisionState === "unmatched");
-  return `<section class="page"><header><p class="eyebrow">Reviewer mappings</p><h1>Review mappings</h1><p>Inspect unmatched source links before you continue review.</p></header><section class="panel">${candidates.length ? candidates.map((slice) => `<p><strong>${escape(slice.title)}</strong><span class="table-meta mono">${escape(slice.location)}</span><span class="muted"> Mapping requires review.</span></p>`).join("") : "<p>No uncertain mappings require action.</p>"}</section></section>`;
+
+async function start(): Promise<void> {
+  const root = document.querySelector<HTMLElement>("#app");
+  if (!root) throw new Error("The application mount is unavailable.");
+  const dataPath = await bridge.dataPath();
+  const services = await createUserWorkspaceServices({ artifact, storage: window.localStorage });
+  mountUserWorkspace(root, {
+    services,
+    dataPath,
+    storage: window.localStorage,
+    saveFile: (name, content, mediaType) => bridge.saveFile(name, content, mediaType),
+  });
 }
-function findings(): string {
-  const rows = state.findings.map((finding) => `<tr><td><button class="table-link" data-finding-source="${finding.id}">${escape(finding.id)}</button><span class="table-meta">${escape(finding.description)}</span></td><td>${escape(finding.type)}</td><td><select data-status="${finding.id}" class="control"><option ${finding.status === "Open" ? "selected" : ""}>Open</option><option ${finding.status === "Addressed" ? "selected" : ""}>Addressed</option><option ${finding.status === "Verified" ? "selected" : ""}>Verified</option><option ${finding.status === "Rejected" ? "selected" : ""}>Rejected</option><option ${finding.status === "Deferred" ? "selected" : ""}>Deferred</option></select></td></tr>`).join("");
-  return `<section class="page"><header><p class="eyebrow">Findings register</p><h1>Findings</h1><p>Update a finding status or open its linked source.</p></header><section class="panel"><table><thead><tr><th>Finding</th><th>Type</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table></section></section>`;
-}
-function exportsPage(): string { return `<section class="page"><header><p class="eyebrow">Review evidence</p><h1>Evidence ZIP</h1><p>Create local evidence files from the current review state.</p></header><section class="panel"><ul class="file-list"><li>review-summary.md</li><li>findings.csv</li><li>review-history.json</li><li>slice-manifest.json</li><li>source-manifest.json</li></ul><button id="export-evidence" class="primary">Export Evidence</button><p id="export-status" class="muted">${escape(state.dataPath)}</p></section></section>`; }
-function body(): string { return page === "dashboard" ? dashboard() : page === "import" ? importPage() : page === "review" ? review() : page === "revisions" ? revisions() : page === "mappings" ? mappings() : page === "findings" ? findings() : exportsPage(); }
-function render(): void { root.innerHTML = `<div class="shell"><aside class="side"><div class="brand"><span>RS</span><strong>Review Slice</strong></div>${nav()}<p class="data-path mono">${escape(state.dataPath)}</p></aside><main class="canvas">${body()}</main></div>`; bind(); }
-function move(direction: "next" | "previous"): void { const index = state.slices.findIndex((slice) => slice.id === state.activeSliceId); const target = state.slices[index + (direction === "next" ? 1 : -1)]; if (target) { state = select(state, target.id); void save(); render(); } }
-function bind(): void {
-  root.querySelectorAll<HTMLButtonElement>("[data-page]").forEach((button) => button.onclick = () => changePage(button.dataset.page as Page));
-  root.querySelectorAll<HTMLButtonElement>("[data-slice]").forEach((button) => button.onclick = () => { state = select(state, button.dataset.slice!); void save(); render(); });
-  root.querySelectorAll<HTMLButtonElement>("[data-decision]").forEach((button) => button.onclick = () => { const reason = button.dataset.decision === "skipped" ? window.prompt("Enter the skip reason.") ?? "" : ""; if (button.dataset.decision !== "skipped" || reason.trim()) { state = decide(state, state.activeSliceId, button.dataset.decision as AppState["slices"][number]["reviewState"], reason); void save(); render(); } });
-  root.querySelectorAll<HTMLButtonElement>("[data-finding]").forEach((button) => button.onclick = () => { const text = window.prompt("Enter the finding description.") ?? ""; if (text.trim()) { state = addFinding(state, state.activeSliceId, button.dataset.finding as Finding["type"], text); void save(); render(); } });
-  root.querySelector<HTMLButtonElement>("[data-note]")?.addEventListener("click", () => { const note = window.prompt("Enter the review note.")?.trim(); if (note) { state = { ...state, slices: state.slices.map((slice) => slice.id === state.activeSliceId ? { ...slice, note } : slice) }; void save(); render(); } });
-  root.querySelectorAll<HTMLButtonElement>("[data-move]").forEach((button) => button.onclick = () => move(button.dataset.move as "next" | "previous"));
-  root.querySelector<HTMLInputElement>("#slice-filter")?.addEventListener("input", (event) => { const query = (event.target as HTMLInputElement).value.toLowerCase(); root.querySelector("#slice-list")!.innerHTML = state.slices.filter((slice) => `${slice.title} ${slice.location}`.toLowerCase().includes(query)).map((slice) => `<button class="slice-row" data-slice="${slice.id}"><strong>${escape(slice.title)}</strong><span>${label(slice.reviewState)}</span></button>`).join(""); bind(); });
-  root.querySelector<HTMLButtonElement>("#import-artifact")?.addEventListener("click", async () => { const next = await window.reviewSlice?.importArtifact(); if (next) { state = next; changePage("review"); } });
-  root.querySelector<HTMLButtonElement>("#export-evidence")?.addEventListener("click", async () => { const result = await window.reviewSlice?.exportEvidence(state); const status = root.querySelector("#export-status"); if (status) status.textContent = result ?? "Export is unavailable."; });
-  root.querySelectorAll<HTMLSelectElement>("[data-status]").forEach((select) => select.onchange = () => { state = { ...state, findings: state.findings.map((finding) => finding.id === select.dataset.status ? { ...finding, status: select.value as Finding["status"] } : finding) }; void save(); });
-  root.querySelectorAll<HTMLButtonElement>("[data-finding-source]").forEach((button) => button.onclick = () => { const finding = state.findings.find((item) => item.id === button.dataset.findingSource); if (finding) { state = select(state, finding.sliceId); void save(); changePage("review"); } });
-}
-document.addEventListener("keydown", (event) => { if (page !== "review" || event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement) return; const keys: Record<string, () => void> = { a: () => { state = decide(state, state.activeSliceId, "accepted"); }, f: () => { const text = window.prompt("Enter the finding description.") ?? ""; if (text) state = addFinding(state, state.activeSliceId, "Defect", text); }, q: () => { const text = window.prompt("Enter the question.") ?? ""; if (text) state = addFinding(state, state.activeSliceId, "Question", text); }, s: () => { const reason = window.prompt("Enter the skip reason.") ?? ""; if (reason.trim()) state = decide(state, state.activeSliceId, "skipped", reason); }, j: () => move("next"), k: () => move("previous") }; if (keys[event.key.toLowerCase()]) { event.preventDefault(); keys[event.key.toLowerCase()](); void save(); render(); } });
-void (async () => { const path = await window.reviewSlice?.dataPath(); state = await window.reviewSlice?.load() ?? createDemo(path ?? state.dataPath); render(); })();
+
+void start().catch((cause: unknown) => {
+  const root = document.querySelector<HTMLElement>("#app");
+  if (root) root.dataset.compositionError = "true";
+  console.error(cause);
+});

@@ -3,9 +3,10 @@ export const ARTIFACT_KINDS = [
 ] as const
 
 export type ArtifactKind = (typeof ARTIFACT_KINDS)[number]
-export type SliceStrategy = "auto" | "heading" | "paragraph" | "row" | "object" | "element" | "file" | "function" | "diff-hunk" | "manual"
+export type SliceStrategy = "auto" | "heading" | "paragraph" | "numbered-section" | "requirement" | "row" | "object" | "element" | "file" | "function" | "diff-hunk" | "manual"
 export type ReviewState = "not-reviewed" | "accepted" | "finding" | "question" | "skipped" | "re-review-required"
 export type RevisionState = "unchanged" | "modified" | "added" | "removed" | "relocated" | "unmatched"
+export type CoordinateSystem = "decoded-text" | "extracted-docx-text" | "extracted-pdf-text"
 
 export interface SourceLocation {
   path: string
@@ -14,6 +15,7 @@ export interface SourceLocation {
   startLine: number
   endLine: number
   locator?: string
+  coordinateSystem: CoordinateSystem
 }
 
 export interface ArtifactSlice {
@@ -33,6 +35,8 @@ export interface ArtifactSlice {
   findingIds: string[]
   createdAt: string
   updatedAt: string
+  previousSliceId?: string
+  previousReviewState?: ReviewState
 }
 
 export interface ArtifactSource {
@@ -49,19 +53,22 @@ export interface ArtifactInput {
   importedAt?: string
 }
 
+/** Serializable slicing input. Callers can persist it with the project. */
 export interface SlicingOptions {
   strategy?: SliceStrategy
   headingDepth?: number
   combineBelowCharacters?: number
   splitAboveCharacters?: number
   manualBoundaries?: readonly number[]
-  excludedMatchKeys?: ReadonlySet<string>
+  excludedMatchKeys?: readonly string[] | ReadonlySet<string>
   excludedTitles?: readonly string[]
 }
 
-export type ImportWarningCode = "EMPTY_SOURCE" | "UNSUPPORTED_FILE" | "BINARY_FILE_SKIPPED" | "STRUCTURE_FALLBACK" | "PDF_TEXT_LIMITED" | "SLICE_COMBINED" | "SLICE_SPLIT" | "SLICE_EXCLUDED"
+export type ImportWarningCode =
+  | "EMPTY_SOURCE" | "UNSUPPORTED_FILE" | "BINARY_FILE_SKIPPED" | "FILE_TOO_LARGE_SKIPPED"
+  | "STRUCTURE_FALLBACK" | "PDF_TEXT_LIMITED" | "SLICE_COMBINED" | "SLICE_SPLIT" | "SLICE_EXCLUDED"
 export interface ImportWarning { code: ImportWarningCode; message: string; sourcePath: string; recovery?: string }
-export type ImportFailureCode = "UNSUPPORTED_FORMAT" | "INVALID_DOCX" | "PDF_TEXT_UNAVAILABLE" | "INVALID_CSV" | "INVALID_JSON" | "INVALID_XML" | "INVALID_DIFF" | "DIRECTORY_READ_FAILED" | "FILE_READ_FAILED"
+export type ImportFailureCode = "UNSUPPORTED_FORMAT" | "INVALID_DOCX" | "PDF_TEXT_UNAVAILABLE" | "INVALID_CSV" | "INVALID_JSON" | "INVALID_XML" | "INVALID_DIFF" | "DIRECTORY_READ_FAILED" | "FILE_READ_FAILED" | "INVALID_SLICING_OPTIONS" | "INVALID_REVISION_MAPPING"
 
 export class ArtifactImportError extends Error {
   readonly code: ImportFailureCode
@@ -76,24 +83,55 @@ export class ArtifactImportError extends Error {
   }
 }
 
+export interface SlicePreviewSummary {
+  sliceCount: number
+  totalCharacters: number
+  estimatedMinutes: number
+  oversizedSliceIds: string[]
+  emptySectionCount: number
+  excludedSectionCount: number
+}
+
 export interface ArtifactImportResult {
   artifact: { id: string; displayName: string; kind: ArtifactKind; sourceHash: string; importedAt: string; sourcePaths: string[] }
   slices: ArtifactSlice[]
   warnings: ImportWarning[]
+  preview: SlicePreviewSummary
+  slicing: NormalizedSlicingOptions
 }
 
-export interface ReviewerMapping { previousSliceId: string; currentSliceId: string; correctedAt: string }
+export interface NormalizedSlicingOptions {
+  strategy: SliceStrategy
+  headingDepth: number
+  combineBelowCharacters: number
+  splitAboveCharacters: number
+  manualBoundaries: number[]
+  excludedMatchKeys: string[]
+  excludedTitles: string[]
+}
+
+export interface ReviewerMapping { previousSliceId: string; currentSliceId: string; correctedAt: string; userConfirmed?: boolean }
+export interface ManualMappingSet {
+  schemaVersion: "1.0"
+  previousSliceSetHash: string
+  currentSliceSetHash: string
+  mappings: ReviewerMapping[]
+  recordedAt: string
+  contentHash: string
+}
 export interface RevisionCandidate { previousSliceId: string; currentSliceId: string; confidence: number; reason: "match-key" | "content-hash" | "fuzzy" | "reviewer" }
-export interface RevisionMapping extends RevisionCandidate { revisionState: RevisionState; preservedReviewState: ReviewState }
+export interface RevisionMapping extends RevisionCandidate { revisionState: RevisionState; preservedReviewState: ReviewState; userConfirmed: boolean }
 export interface RevisionComparison {
   mappings: RevisionMapping[]
   previous: ArtifactSlice[]
   current: ArtifactSlice[]
   uncertainCandidates: RevisionCandidate[]
   counts: Record<RevisionState, number>
+  appliedManualMappings: ReviewerMapping[]
 }
 export interface CompareOptions {
   reviewerMappings?: readonly ReviewerMapping[]
+  manualMappingSet?: ManualMappingSet
   fuzzyThreshold?: number
   uncertainThreshold?: number
   candidateLimit?: number
@@ -101,20 +139,14 @@ export interface CompareOptions {
 }
 export interface DirectoryImportOptions { ignoredNames?: readonly string[]; maximumFileBytes?: number }
 
-export interface ProcessingViewState {
-  phase: "select" | "detect" | "preview" | "confirm"
-  artifactName?: string
-  detectedKind?: ArtifactKind
-  options: SlicingOptions
-  result?: ArtifactImportResult
-  error?: ArtifactImportError
-  busy?: boolean
-}
-export interface ProcessingViewActions {
-  selectFile(): void | Promise<void>
-  selectDirectory(): void | Promise<void>
-  detectStructure(): void | Promise<void>
-  previewSlices(options: SlicingOptions): void | Promise<void>
-  confirmProject(): void | Promise<void>
-  retryImport(): void | Promise<void>
+export type ArtifactProcessingResult<T> = { ok: true; value: T; diagnostics: ImportWarning[] } | { ok: false; error: ArtifactImportError; diagnostics: ImportWarning[] }
+
+export interface ArtifactProcessing {
+  readonly moduleId: "mod.artifact-processing"
+  readonly moduleVersion: "1.0.0"
+  importArtifact(input: ArtifactInput, options?: SlicingOptions): Promise<ArtifactProcessingResult<ArtifactImportResult>>
+  importLocalPath(path: string, options?: SlicingOptions, directoryOptions?: DirectoryImportOptions): Promise<ArtifactProcessingResult<ArtifactImportResult>>
+  compareRevisions(previous: readonly ArtifactSlice[], current: readonly ArtifactSlice[], options?: CompareOptions): Promise<ArtifactProcessingResult<RevisionComparison>>
+  createManualMappingSet(previous: readonly ArtifactSlice[], current: readonly ArtifactSlice[], mappings: readonly ReviewerMapping[], recordedAt: string): ManualMappingSet
+  parseManualMappingSet(json: string): ManualMappingSet
 }

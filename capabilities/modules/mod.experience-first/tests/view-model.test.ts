@@ -1,31 +1,118 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { ArtifactSlice } from "../../mod.artifact-processing/src/contracts.ts";
-import type { Finding } from "../../mod.findings/src/contracts.ts";
-import { getActiveSlice, getMetrics, getSliceRows, labelState, sourceLabel } from "../src/view-model.ts";
+import type { ManagedFinding, ReviewSlice, WorkspaceView } from "../src/contracts.ts";
+import { compareLines, label, metrics, reviewUnitSliceIds, sourceLabel, visibleSlices } from "../src/view-model.ts";
 
-const slice = (id: string, reviewState: ArtifactSlice["reviewState"], revisionState: ArtifactSlice["revisionState"]): ArtifactSlice => ({
-  id, matchKey: id, artifactId: "artifact", sourceHash: "source", contentHash: id, title: `Section ${id}`, content: "Source text", parentId: null, sequence: Number(id), source: { path: "C:\\review\\guide.md", startOffset: 0, endOffset: 11, startLine: 10, endLine: 12, locator: `Section ${id}` }, preview: { excerpt: "Source", characterCount: 11, lineCount: 1 }, reviewState, revisionState, findingIds: [], createdAt: "2026-08-01T00:00:00.000Z", updatedAt: "2026-08-01T00:00:00.000Z",
+const at = "2026-08-01T00:00:00.000Z";
+
+function slice(
+  id: string,
+  reviewState: ReviewSlice["reviewState"],
+  revisionState: ReviewSlice["revisionState"],
+): ReviewSlice {
+  return {
+    id,
+    revisionId: "revision-b",
+    stableMatchKey: `requirement:${id}`,
+    title: `Section ${id}`,
+    content: "Source text",
+    contentHash: `hash-${id}`,
+    sequence: Number(id),
+    source: {
+      artifactId: "artifact-b",
+      path: "C:\\review\\guide.md",
+      location: `Lines ${id}0-${id}2`,
+      locator: `Section ${id}`,
+    },
+    reviewState,
+    revisionState,
+    notes: [],
+    createdAt: at,
+    updatedAt: at,
+  };
+}
+
+function finding(sliceId: string, status: ManagedFinding["status"] = "Open"): ManagedFinding {
+  return {
+    id: `FND-${sliceId}`,
+    type: "Defect",
+    status,
+    description: "Check the input limit.",
+    source: {
+      projectId: "project",
+      revisionId: "revision-b",
+      artifactId: "artifact-b",
+      sliceId,
+      path: "C:\\review\\guide.md",
+      location: `Section ${sliceId}`,
+      title: `Section ${sliceId}`,
+    },
+    createdAt: at,
+    updatedAt: at,
+    evidenceAttachments: [],
+    verifications: [],
+    history: [],
+  };
+}
+
+test("completion excludes removed content and keeps re-review work open", () => {
+  const result = metrics([
+    slice("1", "accepted", "unchanged"),
+    slice("2", "re-review-required", "modified"),
+    slice("3", "skipped", "added"),
+    slice("4", "accepted", "removed"),
+  ], [finding("1"), finding("2", "Verified")]);
+
+  assert.deepEqual(result, {
+    total: 3,
+    reviewed: 2,
+    remaining: 1,
+    completionPercent: 67,
+    openFindings: 1,
+    reReview: 1,
+  });
 });
 
-const finding = (sliceId: string, status: Finding["status"] = "Open"): Finding => ({
-  id: "FND-1", type: "Defect", status, description: "Check input limit", source: { artifactId: "artifact", path: "C:\\review\\guide.md", sliceId, location: "Section 1", title: "Section 1" }, createdAt: "2026-08-01T00:00:00.000Z", updatedAt: "2026-08-01T00:00:00.000Z", history: [],
-});
-
-test("calculate completion without counting re-review slices", () => {
-  const metrics = getMetrics([slice("1", "accepted", "unchanged"), slice("2", "re-review-required", "modified"), slice("3", "skipped", "added")], [finding("1"), finding("2", "Verified")]);
-  assert.deepEqual(metrics, { total: 3, complete: 2, remaining: 1, findings: 1, reReview: 1, completionPercent: 67 });
-});
-
-test("filter slice rows and preserve source-linked counts", () => {
-  const data = { project: { activeSliceId: "2" }, slices: [slice("1", "accepted", "unchanged"), slice("2", "finding", "modified")], findings: [finding("2")], projects: [], importState: { phase: "select", options: {} }, mappings: [], dataPath: "C:\\review" } as never;
-  const rows = getSliceRows(data, "section 2", "modified");
-  assert.equal(rows.length, 1); assert.equal(rows[0].active, true); assert.equal(rows[0].findingCount, 1);
-});
-
-test("use readable states and exact source locations", () => {
+test("labels and source links remain readable and exact", () => {
   const current = slice("1", "not-reviewed", "unmatched");
-  assert.equal(labelState("re-review-required"), "Re Review Required");
+  assert.equal(label("re-review-required"), "Re Review Required");
   assert.equal(sourceLabel(current), "C:\\review\\guide.md · Section 1");
-  assert.equal(getActiveSlice({ project: undefined, slices: [current] } as never)?.id, "1");
+});
+
+test("line comparison is deterministic", () => {
+  assert.deepEqual(compareLines("alpha\nbeta", "alpha\ngamma"), [
+    { kind: "same", text: "alpha", oldLine: 1, newLine: 1 },
+    { kind: "removed", text: "beta", oldLine: 2 },
+    { kind: "added", text: "gamma", newLine: 2 },
+  ]);
+});
+
+test("the review queue excludes removed tombstones while the revision manifest retains them", () => {
+  const current = slice("1", "not-reviewed", "added");
+  const removed = slice("2", "accepted", "removed");
+  const view = { slices: [current, removed], query: "", filter: "all" } as WorkspaceView;
+  assert.deepEqual(visibleSlices(view).map((item) => item.id), [current.id]);
+});
+
+test("manual mapping ancestry keeps earlier findings linked after a stable key changes", () => {
+  const first = slice("1", "finding", "added");
+  const second = { ...slice("2", "re-review-required", "modified"), stableMatchKey: "renamed-unit", previousSliceId: first.id };
+  const third = { ...slice("3", "accepted", "unchanged"), stableMatchKey: "renamed-unit", previousSliceId: second.id };
+  const project = {
+    id: "project",
+    name: "Review",
+    archived: false,
+    createdAt: at,
+    updatedAt: at,
+    lastOpenedAt: at,
+    activeRevisionId: "revision-b",
+    revisions: [
+      { id: "revision-a", label: "A", fileName: "a.md", fileHash: "a", artifactType: "markdown", parserVersion: "1", importedAt: at, slices: [first] },
+      { id: "revision-b", label: "B", fileName: "b.md", fileHash: "b", artifactType: "markdown", parserVersion: "1", importedAt: at, slices: [second] },
+      { id: "revision-c", label: "C", fileName: "c.md", fileHash: "c", artifactType: "markdown", parserVersion: "1", importedAt: at, slices: [third] },
+    ],
+    decisions: [],
+    history: [],
+  } as const;
+  assert.equal(reviewUnitSliceIds(project, third).has(first.id), true);
 });
