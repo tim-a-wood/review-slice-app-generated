@@ -3,6 +3,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import test from "node:test"
+import { deflateSync } from "node:zlib"
 import { ArtifactImportError, compareRevisions, createArtifactProcessing, createManualMappingSet, importArtifact, importLocalPath, parseManualMappingSet } from "../src/index.ts"
 
 const bytes = (value: string): Uint8Array => new TextEncoder().encode(value)
@@ -49,9 +50,13 @@ test("slices CSV, JSON, XML, Git diff, DOCX, text PDF, and a source directory", 
     assert.equal(result.slices.length, expected)
     for (const slice of result.slices) assert.ok(slice.source.endOffset > slice.source.startOffset)
   }
-  const docx = zipStored("word/document.xml", '<w:document><w:body><w:p><w:r><w:t>Alpha text</w:t></w:r></w:p><w:p><w:r><w:t>Beta text</w:t></w:r></w:p></w:body></w:document>')
-  const pdf = bytes("%PDF-1.4\n<< >>\nstream\nBT (Alpha PDF) Tj ET\nendstream\n%%EOF")
-  assert.match((await importArtifact({ displayName: "guide.docx", source: { displayName: "guide.docx", relativePath: "guide.docx", bytes: docx } })).slices[0].content, /Alpha text/)
+  const docx = structuredDocx()
+  const pdf = textPdf("BT /F1 12 Tf 72 720 Td [(Alpha) -250 (PDF)] TJ ET", true)
+  const docxResult = await importArtifact({ displayName: "guide.docx", source: { displayName: "guide.docx", relativePath: "guide.docx", bytes: docx } })
+  assert.equal(docxResult.slices[0].title, "System requirements")
+  assert.match(docxResult.slices[0].content, /^- First control item/m)
+  assert.match(docxResult.slices[0].content, /Parameter\s+Limit/)
+  assert.ok(docxResult.warnings.some((warning) => warning.code === "DOCX_TEXT_LIMITED"))
   const pdfResult = await importArtifact({ displayName: "guide.pdf", source: { displayName: "guide.pdf", relativePath: "guide.pdf", bytes: pdf } })
   assert.match(pdfResult.slices[0].content, /Alpha PDF/); assert.equal(pdfResult.slices[0].source.coordinateSystem, "extracted-pdf-text")
   const folder = await mkdtemp(join(tmpdir(), "artifact-processing-"))
@@ -59,10 +64,21 @@ test("slices CSV, JSON, XML, Git diff, DOCX, text PDF, and a source directory", 
   finally { await rm(folder, { recursive: true, force: true }) }
 })
 
-test("reports recoverable diagnostics for malformed and scanned inputs", async () => {
+test("reports actionable diagnostics for malformed Word and image-only PDF inputs", async () => {
   await assert.rejects(() => importArtifact({ displayName: "bad.json", source: { displayName: "bad.json", relativePath: "bad.json", bytes: bytes("{") } }), (error: unknown) => error instanceof ArtifactImportError && error.code === "INVALID_JSON" && Boolean(error.recovery))
-  const result = await createArtifactProcessing().importArtifact({ displayName: "scan.pdf", source: { displayName: "scan.pdf", relativePath: "scan.pdf", bytes: bytes("%PDF-1.4\n%%EOF") } })
-  assert.equal(result.ok, false); if (!result.ok) assert.equal(result.error.code, "PDF_TEXT_UNAVAILABLE")
+  const wordResult = await createArtifactProcessing().importArtifact({ displayName: "bad.docx", source: { displayName: "bad.docx", relativePath: "bad.docx", bytes: bytes("not a Word package") } })
+  assert.equal(wordResult.ok, false)
+  if (!wordResult.ok) {
+    assert.equal(wordResult.error.code, "INVALID_DOCX")
+    assert.match(wordResult.error.recovery, /re-save/)
+  }
+  const result = await createArtifactProcessing().importArtifact({ displayName: "scan.pdf", source: { displayName: "scan.pdf", relativePath: "scan.pdf", bytes: textPdf("") } })
+  assert.equal(result.ok, false)
+  if (!result.ok) {
+    assert.equal(result.error.code, "PDF_TEXT_UNAVAILABLE")
+    assert.match(result.error.message, /image-only or scanned/)
+    assert.match(result.error.recovery, /Run OCR/)
+  }
 })
 
 test("classifies unchanged, modified, added, removed, relocated, and unmatched slices", async () => {
@@ -97,9 +113,54 @@ test("compares 5000 deterministic slices inside the responsiveness target", asyn
 })
 
 function sourceText(value: Uint8Array): string { return new TextDecoder().decode(value) }
-function zipStored(name: string, content: string): Uint8Array {
-  const fileName = Buffer.from(name); const body = Buffer.from(content); const local = Buffer.alloc(30 + fileName.length + body.length); local.writeUInt32LE(0x04034b50, 0); local.writeUInt16LE(20, 4); local.writeUInt32LE(body.length, 18); local.writeUInt32LE(body.length, 22); local.writeUInt16LE(fileName.length, 26); fileName.copy(local, 30); body.copy(local, 30 + fileName.length)
-  const central = Buffer.alloc(46 + fileName.length); central.writeUInt32LE(0x02014b50, 0); central.writeUInt16LE(20, 4); central.writeUInt16LE(20, 6); central.writeUInt32LE(body.length, 20); central.writeUInt32LE(body.length, 24); central.writeUInt16LE(fileName.length, 28); fileName.copy(central, 46)
-  const end = Buffer.alloc(22); end.writeUInt32LE(0x06054b50, 0); end.writeUInt16LE(1, 8); end.writeUInt16LE(1, 10); end.writeUInt32LE(central.length, 12); end.writeUInt32LE(local.length, 16)
-  return Buffer.concat([local, central, end])
+function textPdf(content: string, compressed = false): Uint8Array {
+  const header = Buffer.from("%PDF-1.7\n%\xE2\xE3\xCF\xD3\n", "latin1")
+  const stream = Buffer.from(content, "latin1")
+  const body = compressed ? deflateSync(stream) : stream
+  const filter = compressed ? " /Filter /FlateDecode" : ""
+  const objects = [
+    Buffer.from("<< /Type /Catalog /Pages 2 0 R >>", "latin1"),
+    Buffer.from("<< /Type /Pages /Kids [3 0 R] /Count 1 >>", "latin1"),
+    Buffer.from("<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>", "latin1"),
+    Buffer.concat([Buffer.from(`<< /Length ${body.length}${filter} >>\nstream\n`, "latin1"), body, Buffer.from("\nendstream", "latin1")]),
+    Buffer.from("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>", "latin1"),
+  ]
+  const records: Buffer[] = []
+  const offsets: number[] = [0]
+  let offset = header.length
+  objects.forEach((object, index) => {
+    const record = Buffer.concat([Buffer.from(`${index + 1} 0 obj\n`, "latin1"), object, Buffer.from("\nendobj\n", "latin1")])
+    offsets.push(offset)
+    records.push(record)
+    offset += record.length
+  })
+  const xrefOffset = offset
+  const xref = Buffer.from(`xref\n0 ${objects.length + 1}\n0000000000 65535 f \n${offsets.slice(1).map((value) => `${String(value).padStart(10, "0")} 00000 n `).join("\n")}\n`, "latin1")
+  const trailer = Buffer.from(`trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF\n`, "latin1")
+  return Buffer.concat([header, ...records, xref, trailer])
+}
+function structuredDocx(): Uint8Array {
+  return zipStored({
+    "word/document.xml": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr><w:r><w:t>System requirements</w:t></w:r></w:p><w:p><w:r><w:t>Introductory review text.</w:t></w:r></w:p><w:p><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr></w:pPr><w:r><w:t>First control item</w:t></w:r></w:p><w:tbl><w:tr><w:tc><w:p><w:r><w:t>Parameter</w:t></w:r></w:p></w:tc><w:tc><w:p><w:r><w:t>Limit</w:t></w:r></w:p></w:tc></w:tr><w:tr><w:tc><w:p><w:r><w:t>Rate</w:t></w:r></w:p></w:tc><w:tc><w:p><w:r><w:t>100 Hz</w:t></w:r></w:p></w:tc></w:tr></w:tbl></w:body></w:document>`,
+    "word/styles.xml": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="Heading 1"/></w:style></w:styles>`,
+    "word/numbering.xml": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:numbering xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:abstractNum w:abstractNumId="0"><w:lvl w:ilvl="0"><w:numFmt w:val="bullet"/><w:lvlText w:val="•"/></w:lvl></w:abstractNum><w:num w:numId="1"><w:abstractNumId w:val="0"/></w:num></w:numbering>`,
+  })
+}
+function zipStored(entries: Readonly<Record<string, string>>): Uint8Array {
+  const localRecords: Buffer[] = []
+  const centralRecords: Buffer[] = []
+  let localOffset = 0
+  for (const [name, content] of Object.entries(entries)) {
+    const fileName = Buffer.from(name)
+    const body = Buffer.from(content)
+    const local = Buffer.alloc(30 + fileName.length + body.length)
+    local.writeUInt32LE(0x04034b50, 0); local.writeUInt16LE(20, 4); local.writeUInt32LE(body.length, 18); local.writeUInt32LE(body.length, 22); local.writeUInt16LE(fileName.length, 26); fileName.copy(local, 30); body.copy(local, 30 + fileName.length)
+    const central = Buffer.alloc(46 + fileName.length)
+    central.writeUInt32LE(0x02014b50, 0); central.writeUInt16LE(20, 4); central.writeUInt16LE(20, 6); central.writeUInt32LE(body.length, 20); central.writeUInt32LE(body.length, 24); central.writeUInt16LE(fileName.length, 28); central.writeUInt32LE(localOffset, 42); fileName.copy(central, 46)
+    localRecords.push(local); centralRecords.push(central); localOffset += local.length
+  }
+  const centralDirectory = Buffer.concat(centralRecords)
+  const end = Buffer.alloc(22)
+  end.writeUInt32LE(0x06054b50, 0); end.writeUInt16LE(localRecords.length, 8); end.writeUInt16LE(localRecords.length, 10); end.writeUInt32LE(centralDirectory.length, 12); end.writeUInt32LE(localOffset, 16)
+  return Buffer.concat([...localRecords, centralDirectory, end])
 }

@@ -10,11 +10,11 @@ The initial target is Windows 11. The application must work without a network co
 
 The primary user is a technical professional reviewing requirements, designs, verification procedures, test specifications, standards, plans, pull requests, source code, configuration, or generated engineering documentation.
 
-The product is deterministic, source-preserving, resumable, traceable, revision-aware, and low-friction. It has no accounts, cloud synchronization, collaboration, OCR, AI analysis, formal signatures, or source editing.
+The product is deterministic, source-preserving, resumable, traceable, revision-aware, and low-friction. It has no accounts, cloud synchronization, collaboration, built-in OCR, AI analysis, formal signatures, or source editing.
 
 ## MVP inputs and slicing
 
-The MVP imports Markdown, plain text, DOCX, text-based PDF, CSV, JSON, XML, Git patches/unified diffs, and local source-code directories. Sensible deterministic defaults are selected per type:
+The MVP imports Markdown, plain text, DOCX, text-based PDF, CSV, JSON, XML, Git patches/unified diffs, and local source-code directories. DOCX import must use a maintained parser and preserve reviewable headings, lists, tables, and paragraph boundaries. PDF import must use a maintained parser that supports compressed streams, standard font encodings, and the normal text operators used by searchable PDFs. Image-only or scanned documents must be identified explicitly with actionable guidance to run OCR and retry. Sensible deterministic defaults are selected per type:
 
 - documents by heading, numbered section, requirement identifier, paragraph block, or manual boundary;
 - structured data by CSV row, JSON object, or XML element;
@@ -68,5 +68,7 @@ The review summary includes project and revision metadata, dates, slice totals, 
 - Navigation has no noticeable delay and revision comparison does not block the UI.
 - Imported source files are never modified.
 - Parsing failures are explicit and actionable.
+- Searchable PDFs with ordinary compressed or encoded text layers import successfully; image-only PDFs fail with explicit OCR recovery guidance.
+- Word DOCX files retain reviewable headings, lists, tables, and paragraph boundaries in the slice preview.
 - A user can review a 100-section document across sessions, reopen linked findings, identify exactly what remains, import a revision, avoid re-reviewing unchanged content, export complete evidence, and use the application fully offline.
 - The repository includes maintainable TypeScript boundaries, automated tests for deterministic slicing/comparison/export, Windows installer configuration, and a Windows CI release workflow.

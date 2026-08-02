@@ -6,7 +6,7 @@ Review Slice is a local-first desktop application for structured, source-linked 
 
 ## What the application supports
 
-- Import Markdown, text, DOCX, PDF, CSV, JSON, XML, diff, and patch files, or import a source-code directory.
+- Import Markdown, text, Word DOCX, text-based PDF, CSV, JSON, XML, diff, and patch files, or import a source-code directory. DOCX import preserves reviewable headings, lists, tables, and paragraphs; image-only documents require OCR before import.
 - Review each source slice as accepted, skipped, questioned, or linked to a finding.
 - Re-import a revision and classify slices as unchanged, modified, added, removed, relocated, or unmatched.
 - Retain prior dispositions only for unchanged or equivalently relocated content.

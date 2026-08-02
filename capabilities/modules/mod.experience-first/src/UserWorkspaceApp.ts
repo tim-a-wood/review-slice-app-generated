@@ -148,7 +148,7 @@ class UserWorkspaceController {
 
   private run(operation: () => void | Promise<void>): void {
     this.status = "loading"; this.error = undefined; this.notice = undefined; this.render();
-    void Promise.resolve(operation()).then(() => { this.status = "ready"; this.savedAt = new Date().toISOString(); this.render(); }).catch((cause: unknown) => { this.status = "error"; this.error = cause instanceof Error ? cause.message : "The action did not finish."; this.render(); });
+    void Promise.resolve(operation()).then(() => { this.status = "ready"; this.savedAt = new Date().toISOString(); this.render(); }).catch((cause: unknown) => { this.status = "error"; this.error = actionErrorMessage(cause); this.render(); });
   }
 
   private onClick(event: Event): void {
@@ -449,3 +449,8 @@ function normalizedHash(value: string): string { return /^[a-f0-9]{64}$/i.test(v
 function evidenceReviewState(value: ReviewSlice["reviewState"]): EvidenceReviewState { return ({ "not-reviewed": "Not Reviewed", accepted: "Accepted", finding: "Finding", question: "Question", skipped: "Skipped", "re-review-required": "Re-review Required" } as const)[value]; }
 function evidenceRevisionState(value: ReviewSlice["revisionState"]): EvidenceRevisionState { return ({ unchanged: "Unchanged", modified: "Modified", added: "Added", removed: "Removed", relocated: "Relocated", unmatched: "Unmatched" } as const)[value]; }
 function isEditing(target: EventTarget | null): boolean { return target instanceof HTMLElement && (target.matches("input, textarea, select") || target.isContentEditable); }
+export function actionErrorMessage(cause: unknown): string {
+  if (!(cause instanceof Error)) return "The action did not finish."
+  const recovery = "recovery" in cause && typeof cause.recovery === "string" ? cause.recovery.trim() : ""
+  return recovery && !cause.message.includes(recovery) ? `${cause.message} ${recovery}` : cause.message
+}

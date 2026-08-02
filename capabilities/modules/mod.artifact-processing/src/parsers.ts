@@ -1,13 +1,16 @@
-import { inflateRawSync, inflateSync } from "node:zlib"
+import { createRequire } from "node:module"
+import { dirname, join } from "node:path"
+import mammoth from "mammoth"
+import { getDocument, VerbosityLevel } from "pdfjs-dist/legacy/build/pdf.mjs"
 import { ArtifactImportError } from "./contracts.ts"
 import type { ArtifactKind, ArtifactSource, CoordinateSystem, ImportWarning, NormalizedSlicingOptions, SliceStrategy } from "./contracts.ts"
 import { decodeText, slug, trimSpan, type RawSlice } from "./text.ts"
 
-const decoder = new TextDecoder("utf-8", { fatal: false })
 const textKinds: Record<string, ArtifactKind> = { md: "markdown", markdown: "markdown", txt: "text", text: "text", docx: "docx", pdf: "pdf", csv: "csv", json: "json", xml: "xml", diff: "diff", patch: "diff" }
 const codeExtensions = new Set(["c", "cc", "cpp", "cs", "css", "go", "h", "hpp", "html", "java", "js", "jsx", "kt", "m", "mm", "php", "py", "rb", "rs", "scss", "swift", "ts", "tsx", "vue", "yaml", "yml"])
-const pdfEscapes = { n: "\n", r: "\r", t: "\t", b: "\b", f: "\f", "(": "(", ")": ")", "\\": "\\" } as const
 const namedEntities = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'" } as const
+const pdfJsDirectory = dirname(createRequire(import.meta.url).resolve("pdfjs-dist/package.json"))
+const pdfJsAssetDirectory = (name: string): string => `${join(pdfJsDirectory, name)}${process.platform === "win32" ? "\\" : "/"}`
 
 export interface ParsedSource { text: string; slices: RawSlice[]; coordinateSystem: CoordinateSystem }
 
@@ -18,10 +21,10 @@ export function detectKind(source: ArtifactSource): ArtifactKind {
   return codeExtensions.has(extension) ? "source-directory" : "text"
 }
 
-export function parseSource(source: ArtifactSource, options: NormalizedSlicingOptions, warnings: ImportWarning[] = []): ParsedSource {
+export async function parseSource(source: ArtifactSource, options: NormalizedSlicingOptions, warnings: ImportWarning[] = []): Promise<ParsedSource> {
   const kind = detectKind(source)
-  const extracted = kind === "docx" ? { text: extractDocx(source), coordinateSystem: "extracted-docx-text" as const }
-    : kind === "pdf" ? { text: extractPdf(source, warnings), coordinateSystem: "extracted-pdf-text" as const }
+  const extracted = kind === "docx" ? { text: await extractDocx(source, warnings), coordinateSystem: "extracted-docx-text" as const }
+    : kind === "pdf" ? { text: await extractPdf(source, warnings), coordinateSystem: "extracted-pdf-text" as const }
       : { text: decodeText(source.bytes), coordinateSystem: "decoded-text" as const }
   const text = extracted.text
   if (!text.trim()) {
@@ -32,6 +35,7 @@ export function parseSource(source: ArtifactSource, options: NormalizedSlicingOp
   let slices: RawSlice[]
   switch (kind) {
     case "markdown": slices = parseMarkdown(text, options.strategy, options.headingDepth); break
+    case "docx": slices = parseMarkdown(text, options.strategy, options.headingDepth); break
     case "csv": slices = parseCsv(text, source.relativePath); break
     case "json": slices = parseJson(text, source.relativePath); break
     case "xml": slices = parseXml(text, source.relativePath); break
@@ -193,43 +197,110 @@ function parseCode(text: string, path: string, strategy: SliceStrategy): RawSlic
   return declarations.map((declaration, index) => span(text, declaration.index ?? 0, declarations[index + 1]?.index ?? text.length, declaration[1], `symbol:${declaration[1]}`, `symbol:${declaration[1]}`))
 }
 
-function extractDocx(source: ArtifactSource): string {
-  let xml: Uint8Array
-  try { xml = readZipEntry(source.bytes, "word/document.xml") } catch (cause) { throw new ArtifactImportError("INVALID_DOCX", "The DOCX package has no readable document XML.", source.relativePath, "Select a valid DOCX file and import it again.", { cause }) }
-  const documentXml = decoder.decode(xml)
-  const paragraphs = [...documentXml.matchAll(/<w:p\b[\s\S]*?<\/w:p>/g)].map((paragraph) => paragraph[0].replace(/<w:tab\b[^>]*\/>/g, "\t").replace(/<w:br\b[^>]*\/>/g, "\n").replace(/<w:t\b[^>]*>([\s\S]*?)<\/w:t>/g, "$1").replace(/<[^>]+>/g, "").trim())
-  const text = decodeEntities(paragraphs.filter(Boolean).join("\n\n"))
-  if (!text) throw new ArtifactImportError("INVALID_DOCX", "The DOCX file has no readable text.", source.relativePath, "Select a DOCX file that contains document text.")
-  return text
-}
-
-function readZipEntry(bytes: Uint8Array, requestedName: string): Uint8Array {
-  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength); const end = findSignature(bytes, 0x06054b50)
-  if (end < 0) throw new Error("ZIP end record missing")
-  const directoryOffset = view.getUint32(end + 16, true); const entries = view.getUint16(end + 10, true); let cursor = directoryOffset
-  for (let index = 0; index < entries; index += 1) {
-    if (view.getUint32(cursor, true) !== 0x02014b50) throw new Error("ZIP directory invalid")
-    const method = view.getUint16(cursor + 10, true); const compressedSize = view.getUint32(cursor + 20, true); const nameLength = view.getUint16(cursor + 28, true); const extraLength = view.getUint16(cursor + 30, true); const commentLength = view.getUint16(cursor + 32, true); const localOffset = view.getUint32(cursor + 42, true)
-    const name = decoder.decode(bytes.subarray(cursor + 46, cursor + 46 + nameLength))
-    if (name === requestedName) { const localNameLength = view.getUint16(localOffset + 26, true); const localExtraLength = view.getUint16(localOffset + 28, true); const dataStart = localOffset + 30 + localNameLength + localExtraLength; const compressed = bytes.subarray(dataStart, dataStart + compressedSize); if (method === 0) return compressed; if (method === 8) return inflateRawSync(compressed); throw new Error("ZIP compression unsupported") }
-    cursor += 46 + nameLength + extraLength + commentLength
+async function extractDocx(source: ArtifactSource, warnings: ImportWarning[]): Promise<string> {
+  try {
+    const result = await mammoth.convertToHtml(
+      { buffer: Buffer.from(source.bytes) },
+      {
+        externalFileAccess: false,
+        includeDefaultStyleMap: true,
+        includeEmbeddedStyleMap: true,
+        styleMap: [
+          "p[style-name='Title'] => h1:fresh",
+          "p[style-name='Subtitle'] => h2:fresh",
+        ],
+        convertImage: mammoth.images.imgElement(async () => ({ src: "embedded-image" })),
+      },
+    )
+    for (const message of result.messages) {
+      warnings.push({ code: "DOCX_TEXT_LIMITED", message: message.message, sourcePath: source.relativePath, recovery: "Check the slice preview against the Word document before confirmation." })
+    }
+    if (/<img\b/i.test(result.value)) {
+      warnings.push({ code: "DOCX_TEXT_LIMITED", message: "Embedded Word images are identified but their pixels are not converted to review text.", sourcePath: source.relativePath, recovery: "Add captions or run OCR before import when an image contains reviewable text." })
+    }
+    const text = docxHtmlToStructuredText(result.value)
+    if (!text) throw new ArtifactImportError("INVALID_DOCX", "The Word document has no extractable text.", source.relativePath, "If the document contains only page images, run OCR and save a searchable DOCX before retrying.")
+    warnings.push({ code: "DOCX_TEXT_LIMITED", message: "Word document structure was extracted; visual pagination, floating objects, and tracked-change presentation are not reproduced.", sourcePath: source.relativePath, recovery: "Check the slice preview against the Word document before confirmation." })
+    return text
+  } catch (cause) {
+    if (cause instanceof ArtifactImportError) throw cause
+    throw new ArtifactImportError("INVALID_DOCX", "The Word document could not be parsed.", source.relativePath, "Open and re-save the file as a current DOCX document, then import the new copy.", { cause })
   }
-  throw new Error("ZIP entry missing")
 }
-function findSignature(bytes: Uint8Array, signature: number): number { const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength); for (let index = Math.max(0, bytes.length - 65_557); index <= bytes.length - 4; index += 1) if (view.getUint32(index, true) === signature) return index; return -1 }
+function docxHtmlToStructuredText(html: string): string {
+  const structural = html
+    .replace(/<img\b[^>]*>/gi, " [Embedded image] ")
+    .replace(/<h([1-6])\b[^>]*>/gi, (_all, level: string) => `\n\n${"#".repeat(Number(level))} `)
+    .replace(/<\/h[1-6]>/gi, "\n\n")
+    .replace(/<li\b[^>]*>/gi, "\n- ")
+    .replace(/<\/li>/gi, "\n")
+    .replace(/<tr\b[^>]*>/gi, "\n")
+    .replace(/<\/(?:td|th)>/gi, "\t")
+    .replace(/<(?:td|th)\b[^>]*>/gi, "")
+    .replace(/<p\b[^>]*>/gi, "\n\n")
+    .replace(/<\/p>/gi, "\n\n")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+  return decodeEntities(structural).replace(/\u00a0/g, " ").replace(/[ \t]+\n/g, "\n").replace(/\n[ \t]+/g, "\n").replace(/\n{3,}/g, "\n\n").trim()
+}
 
-function extractPdf(source: ArtifactSource, warnings: ImportWarning[]): string {
-  const raw = new TextDecoder("latin1").decode(source.bytes)
-  if (!raw.startsWith("%PDF-")) throw new ArtifactImportError("PDF_TEXT_UNAVAILABLE", "The PDF header is invalid.", source.relativePath, "Select a text-based PDF and import it again.")
-  const streams: string[] = []
-  for (const match of raw.matchAll(/<<(.*?)>>\s*stream\r?\n([\s\S]*?)\r?\nendstream/g)) { let content = match[2]; if (/\/FlateDecode/.test(match[1])) { try { content = new TextDecoder("latin1").decode(inflateSync(Buffer.from(content, "latin1"))) } catch { continue } } streams.push(extractPdfStrings(content)) }
-  const text = streams.join("\n").replace(/\n{3,}/g, "\n\n").trim()
-  if (!text) throw new ArtifactImportError("PDF_TEXT_UNAVAILABLE", "The PDF has no supported embedded text.", source.relativePath, "Use a text-based PDF with selectable text. Scanned PDFs require OCR and are not supported.")
-  warnings.push({ code: "PDF_TEXT_LIMITED", message: "The PDF importer extracted embedded text operators; visual layout is not reproduced.", sourcePath: source.relativePath, recovery: "Check the slice preview against the source before confirmation." })
-  return text
+async function extractPdf(source: ArtifactSource, warnings: ImportWarning[]): Promise<string> {
+  try {
+    const loadingTask = getDocument({
+      data: new Uint8Array(source.bytes),
+      cMapUrl: pdfJsAssetDirectory("cmaps"),
+      cMapPacked: true,
+      isEvalSupported: false,
+      standardFontDataUrl: pdfJsAssetDirectory("standard_fonts"),
+      useSystemFonts: true,
+      verbosity: VerbosityLevel.ERRORS,
+      wasmUrl: pdfJsAssetDirectory("wasm"),
+    })
+    const document = await loadingTask.promise
+    try {
+      const pages: string[] = []
+      for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {
+        const page = await document.getPage(pageNumber)
+        const content = await page.getTextContent({ includeMarkedContent: false })
+        const text = content.items.map((item) => "str" in item ? `${item.str}${item.hasEOL ? "\n" : ""}` : "").join("").trim()
+        if (text) pages.push(text)
+        page.cleanup()
+      }
+      const text = pages.join("\n\n").replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim()
+      if (!text) {
+        throw new ArtifactImportError(
+          "PDF_TEXT_UNAVAILABLE",
+          "The PDF appears to be image-only or scanned and has no extractable text layer.",
+          source.relativePath,
+          "Run OCR to create a searchable PDF, then import the OCR-processed file.",
+        )
+      }
+      warnings.push({
+        code: "PDF_TEXT_LIMITED",
+        message: "The PDF text layer was extracted; visual layout and reading order may differ from the rendered pages.",
+        sourcePath: source.relativePath,
+        recovery: "Check the slice preview against the source before confirmation.",
+      })
+      return text
+    } finally {
+      await document.destroy()
+    }
+  } catch (cause) {
+    if (cause instanceof ArtifactImportError) throw cause
+    const name = typeof cause === "object" && cause && "name" in cause ? String(cause.name) : ""
+    if (name === "PasswordException") {
+      throw new ArtifactImportError("PDF_TEXT_UNAVAILABLE", "The PDF is password protected.", source.relativePath, "Remove the PDF password in an authorized PDF editor, then import the unlocked copy.", { cause })
+    }
+    throw new ArtifactImportError("PDF_TEXT_UNAVAILABLE", "The PDF text layer could not be extracted.", source.relativePath, "Open and re-save the PDF with a current PDF editor, or export it as a searchable PDF, then try again.", { cause })
+  }
 }
-function extractPdfStrings(stream: string): string { const pieces: string[] = []; for (const block of stream.matchAll(/BT([\s\S]*?)ET/g)) for (const token of block[1].matchAll(/\((?:\\.|[^\\)])*\)|<[0-9A-Fa-f\s]+>/g)) pieces.push(decodePdfToken(token[0])); return pieces.filter(Boolean).join(" ") }
-function decodePdfToken(token: string): string { if (token.startsWith("<")) return Buffer.from(token.slice(1, -1).replace(/\s/g, ""), "hex").toString("latin1"); return token.slice(1, -1).replace(/\\([nrtbf()\\])/g, (_all, character: string) => hasKey(pdfEscapes, character) ? pdfEscapes[character] : character).replace(/\\([0-7]{1,3})/g, (_all, octal) => String.fromCharCode(Number.parseInt(octal, 8))) }
-function decodeEntities(value: string): string { return value.replace(/&(amp|lt|gt|quot|apos);/g, (_all, entity: string) => hasKey(namedEntities, entity) ? namedEntities[entity] : entity) }
+function decodeEntities(value: string): string {
+  return value.replace(/&(amp|lt|gt|quot|apos|nbsp);|&#(?:x([0-9a-f]+)|(\d+));/gi, (_all, entity: string | undefined, hexadecimal: string | undefined, decimal: string | undefined) => {
+    if (!entity) return String.fromCodePoint(Number.parseInt(hexadecimal ?? decimal ?? "0", hexadecimal ? 16 : 10))
+    const normalized = entity.toLowerCase()
+    if (normalized === "nbsp") return " "
+    return hasKey(namedEntities, normalized) ? namedEntities[normalized] : entity
+  })
+}
 function hasKey<Value extends object>(value: Value, key: PropertyKey): key is keyof Value { return Object.prototype.hasOwnProperty.call(value, key) }
 function span(text: string, start: number, end: number, title: string, locator: string, key: string, parentKey?: string): RawSlice { return { title, ...trimSpan(text, start, end), locator, key, parentKey } }

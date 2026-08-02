@@ -23,7 +23,7 @@ export async function importArtifact(input: ArtifactInput, requestedOptions: Sli
     if (sourceKind !== "docx" && sourceKind !== "pdf" && isBinary(source.bytes)) {
       warnings.push({ code: "BINARY_FILE_SKIPPED", message: "A binary file was skipped.", sourcePath: source.relativePath, recovery: "Select a supported text source." }); continue
     }
-    const parsed = parseSource({ ...source, kind: sourceKind }, options, warnings)
+    const parsed = await parseSource({ ...source, kind: sourceKind }, options, warnings)
     const sliceWarnings: SliceWarning[] = []
     slices.push(...createSlices(parsed.slices, artifactId, source.relativePath, sha256(source.bytes), importedAt, options, sliceWarnings, parsed.text, parsed.coordinateSystem))
     warnings.push(...sliceWarnings)

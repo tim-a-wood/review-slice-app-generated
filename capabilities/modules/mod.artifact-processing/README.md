@@ -9,8 +9,8 @@ Import `createArtifactProcessing` from `src/index.ts`. The factory returns resul
 ## Supported sources
 
 - Markdown and plain text
-- DOCX document text
-- Text-based PDF streams (no OCR)
+- Word DOCX through Mammoth, preserving reviewable headings, lists, tables, and paragraph boundaries
+- Text-based PDFs through PDF.js, including compressed streams and standard encoded text (no built-in OCR)
 - CSV, JSON, and XML
 - Git patches and unified diffs with Git file headers
 - Local source-code directories
@@ -29,4 +29,4 @@ Manual mapping sets are serializable, hash-bound to both slice sets, and validat
 
 ## Diagnostics
 
-Recoverable import failures contain a stable code, source path, and recovery action. Scanned PDFs fail honestly with `PDF_TEXT_UNAVAILABLE`; the module does not perform OCR or network access. Large or binary directory files are reported as warnings instead of being silently included.
+Recoverable import failures contain a stable code, source path, and recovery action. Mammoth handles Word document structure and PDF.js handles the text layers used by ordinary searchable PDFs. Image-only and scanned documents fail explicitly with instructions to run OCR before retrying; the module does not perform OCR or network access. Large or binary directory files are reported as warnings instead of being silently included.

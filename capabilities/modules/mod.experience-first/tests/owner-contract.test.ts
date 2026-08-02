@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { ArtifactProcessing } from "../../mod.artifact-processing/src/contracts.ts";
+import { ArtifactImportError, type ArtifactProcessing } from "../../mod.artifact-processing/src/contracts.ts";
 import { icon, pageHeading } from "../src/dom.ts";
 import { createUserWorkspaceServices, type CreateUserWorkspaceServicesOptions } from "../src/provider-services.ts";
-import { mountUserWorkspace } from "../src/UserWorkspaceApp.ts";
+import { actionErrorMessage, mountUserWorkspace } from "../src/UserWorkspaceApp.ts";
 
 test("page heading emits one visible title and a concise summary", () => {
   const markup = pageHeading({
@@ -29,6 +29,19 @@ test("renderer service composition requires an injected artifact boundary", () =
   const artifact = {} as ArtifactProcessing;
   const options: CreateUserWorkspaceServicesOptions = { artifact };
   assert.equal(options.artifact, artifact);
+});
+
+test("action errors include the parser recovery guidance", () => {
+  const error = new ArtifactImportError(
+    "PDF_TEXT_UNAVAILABLE",
+    "The PDF appears to be image-only or scanned and has no extractable text layer.",
+    "scan.pdf",
+    "Run OCR to create a searchable PDF, then import the OCR-processed file.",
+  );
+  assert.equal(
+    actionErrorMessage(error),
+    "The PDF appears to be image-only or scanned and has no extractable text layer. Run OCR to create a searchable PDF, then import the OCR-processed file.",
+  );
 });
 
 test("dialog Save persists a source-linked finding after reload", async () => {
