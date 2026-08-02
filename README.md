@@ -63,7 +63,7 @@ Create the portable Windows x64 ZIP.
 npm run dist:win
 ```
 
-The build writes `release/Review-Slice-1.0.0-x64.zip`.
+The initial beta build writes `release/Review-Slice-1.0.0-beta.1-x64.zip`.
 
 To deploy it on Windows 11:
 
